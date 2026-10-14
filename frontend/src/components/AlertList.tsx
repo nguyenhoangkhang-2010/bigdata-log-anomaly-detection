@@ -14,7 +14,7 @@ export function AlertList({ alerts }: { alerts: S["Alert"][] }) {
             {a.block_id ? (
               <Link className="alerts__t" to={`/anomalies/${encodeURIComponent(a.block_id)}`}>{a.title}</Link>
             ) : (
-              <div className="alerts__t">{a.title}</div>
+              <span className="alerts__t">{a.title}</span>
             )}
             <div className="alerts__d">{a.detail}</div>
           </div>

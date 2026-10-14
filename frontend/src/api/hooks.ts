@@ -85,6 +85,8 @@ export type LogQuery = Q<{
   level: S["Level"];
   component: string;
   block_id: string;
+  start: string;
+  end: string;
   page: number;
   page_size: number;
 }>;

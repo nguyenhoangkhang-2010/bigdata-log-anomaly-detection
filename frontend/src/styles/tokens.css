@@ -1,84 +1,54 @@
-/* Bảng màu: giấy ấm + mực. Một màu tín hiệu (đỏ son) chỉ dành cho bất thường/lỗi.
-   Không gradient, không đổ bóng, không bo góc. */
+/* ÁP PHÍCH THỤY SĨ + BÚT DẠ QUANG
+   Nền bê tông xám lạnh; ba màu phẳng: đen mực, xanh Klein, vàng bút dạ.
+   Không gradient, không đổ bóng, không bo góc, không mờ. Vàng = "chú ý" (bất thường), xanh = WARN, đen = ERROR. */
 :root {
-  --paper: #efebe2;
-  --paper-2: #e7e2d5;
-  --paper-3: #ddd6c5;
-  --ink: #16150f;
-  --ink-2: #4a463b;
-  --ink-3: #6b6657;
-  --rule: #cbc4b2;
-  --signal: #c2381a;
-  --on-signal: #fbf7ee;
+  --ground: #e2e3df;
+  --ground-2: #d3d4cf;
+  --ink: #0c0c0d;
+  --ink-2: #3f403d;
+  --ink-3: #5b5c58;
+  --rule: #b6b7b1;
 
-  /* mức độ log */
-  --lvl-info: #bdb6a3;
-  --lvl-warn: #c9921e;
-  --lvl-error: #c2381a;
-  --lvl-fatal: #16150f;
+  --blue: #1b34d6;
+  --on-blue: #f6f6f3;
+  --blue-ink: #1b34d6;      /* xanh dùng làm màu chữ */
+  --yellow: #f4d200;
+  --on-yellow: #0c0c0d;
+  --gray: #a9aaa4;          /* INFO */
 
-  /* thang đậm nhạt cho ô nhiệt (5 bậc rời rạc, không chuyển màu liên tục) */
-  --step-0: transparent;
-  --step-1: #e2dccb;
-  --step-2: #cfc6af;
-  --step-3: #b3a98e;
-  --step-4: #8d836a;
-  --step-5: #16150f;
-  --step-5-text: #efebe2;
+  --display: "Archivo Variable", "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --sans: "Archivo Variable", "Archivo", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
 
-  --serif: "Newsreader Variable", "Newsreader", "Iowan Old Style", Georgia, serif;
-  --sans: "IBM Plex Sans", system-ui, sans-serif;
-  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
-
-  --gutter: clamp(20px, 4vw, 56px);
-  --sidebar: 268px;
+  --gutter: clamp(18px, 3.2vw, 48px);
+  --max: 1560px;
   color-scheme: light;
 }
 
 :root[data-theme="dark"] {
-  --paper: #121110;
-  --paper-2: #1b1a17;
-  --paper-3: #26241f;
-  --ink: #ece6d8;
-  --ink-2: #b5ae9c;
-  --ink-3: #8f8978;
-  --rule: #34312a;
-  --signal: #f0613b;
-  --on-signal: #170a05;
-  --lvl-info: #4a463b;
-  --lvl-warn: #d9a13a;
-  --lvl-error: #f0613b;
-  --lvl-fatal: #ece6d8;
-  --step-1: #23211c;
-  --step-2: #35322a;
-  --step-3: #55503f;
-  --step-4: #8a8268;
-  --step-5: #ece6d8;
-  --step-5-text: #121110;
+  --ground: #0d0d0e;
+  --ground-2: #1b1b1d;
+  --ink: #f0f0eb;
+  --ink-2: #bebeb7;
+  --ink-3: #909089;
+  --rule: #3a3a3c;
+  --blue: #3347f0;
+  --blue-ink: #93a0ff;
+  --gray: #5a5a5c;
   color-scheme: dark;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --paper: #121110;
-    --paper-2: #1b1a17;
-    --paper-3: #26241f;
-    --ink: #ece6d8;
-    --ink-2: #b5ae9c;
-    --ink-3: #8f8978;
-    --rule: #34312a;
-    --signal: #f0613b;
-    --on-signal: #170a05;
-    --lvl-info: #4a463b;
-    --lvl-warn: #d9a13a;
-    --lvl-error: #f0613b;
-    --lvl-fatal: #ece6d8;
-    --step-1: #23211c;
-    --step-2: #35322a;
-    --step-3: #55503f;
-    --step-4: #8a8268;
-    --step-5: #ece6d8;
-    --step-5-text: #121110;
+    --ground: #0d0d0e;
+    --ground-2: #1b1b1d;
+    --ink: #f0f0eb;
+    --ink-2: #bebeb7;
+    --ink-3: #909089;
+    --rule: #3a3a3c;
+    --blue: #3347f0;
+    --blue-ink: #93a0ff;
+    --gray: #5a5a5c;
     color-scheme: dark;
   }
 }
