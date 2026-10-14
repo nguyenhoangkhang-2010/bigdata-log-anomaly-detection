@@ -1,21 +1,29 @@
-"""Job 03 - trích đặc trưng cấp block + thống kê lỗi theo cửa sổ thời gian."""
-from logad.config import hdfs_uri, load_config
+"""Job 03 - trích đặc trưng cấp block (vector đếm sự kiện) + thống kê lỗi theo cửa sổ thời gian."""
+from _common import run_standalone
+
+from logad.config import resolve_paths
 from logad.features import build_event_count_matrix, build_window_error_stats
-from logad.spark_utils import get_spark
+from logad.storage import load_parquet, save_json, save_parquet
 
 
-def main() -> None:
-    cfg = load_config()
-    spark = get_spark(cfg, "03-features")
-    parsed = spark.read.parquet(hdfs_uri(cfg, "parsed_path"))
+def run(spark, cfg) -> dict:
+    paths = resolve_paths(cfg)
+    fc = cfg["features"]
+    parsed = load_parquet(spark, paths.parsed)
 
-    features = build_event_count_matrix(parsed)
-    features.write.mode("overwrite").parquet(hdfs_uri(cfg, "features_path"))
+    features, meta = build_event_count_matrix(parsed, normalize=fc["normalize"])
+    features = features.cache()
+    n = features.count()
+    save_parquet(features, paths.features)
+    save_json(spark, meta, paths.features + "_meta.json")
 
-    stats = build_window_error_stats(parsed, cfg["features"]["time_window_seconds"])
-    stats.write.mode("overwrite").parquet(hdfs_uri(cfg, "features_path") + "_window_stats")
-    spark.stop()
+    stats = build_window_error_stats(parsed, fc["time_window_seconds"])
+    save_parquet(stats, paths.window_stats)
+
+    print(f"[03] {n:,} block x {len(meta['vocab'])} sự kiện, chuẩn hóa = {meta['normalize']} -> {paths.features}")
+    print(f"     thống kê lỗi theo cửa sổ {fc['time_window_seconds']}s -> {paths.window_stats}")
+    return {"blocks": n, "events": len(meta["vocab"])}
 
 
 if __name__ == "__main__":
-    main()
+    run_standalone("03-features", run)
