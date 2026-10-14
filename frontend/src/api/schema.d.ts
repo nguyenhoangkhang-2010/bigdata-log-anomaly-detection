@@ -123,6 +123,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/anomalies/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Xuất danh sách block bất thường ra CSV (cùng bộ lọc với danh sách, không phân trang)
+         * @description Cột: block_id, model, anomaly_score, is_anomaly, cluster, first_ts, last_ts, line_count,
+         *     warn_count, error_count, top_events (các event_id cách nhau bằng khoảng trắng).
+         *     Trả về tối đa `limit` dòng theo thứ tự `sort`.
+         */
+        get: operations["exportAnomalies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/anomalies/{block_id}": {
         parameters: {
             query?: never;
@@ -603,6 +625,36 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AnomalyPage"];
+                };
+            };
+            422: components["responses"]["ValidationError"];
+        };
+    };
+    exportAnomalies: {
+        parameters: {
+            query?: {
+                model?: components["schemas"]["ModelName"];
+                only_flagged?: boolean;
+                min_score?: number;
+                q?: string;
+                sort?: "score_desc" | "score_asc" | "time_desc" | "time_asc" | "lines_desc";
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tệp CSV (UTF-8) */
+            200: {
+                headers: {
+                    /** @description attachment; filename="anomalies-<model>.csv" */
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": string;
                 };
             };
             422: components["responses"]["ValidationError"];

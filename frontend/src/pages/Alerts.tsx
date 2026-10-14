@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { S } from "../api/client";
 import { useAlerts, useComponents } from "../api/hooks";
 import { AlertList } from "../components/AlertList";
-import { Async, PageHead, Section, Segmented } from "../components/ui";
+import { Async, PageTitle, Section, Segmented } from "../components/ui";
 import { fmtInt } from "../lib/format";
 import { useDocumentTitle } from "../lib/hooks";
 
@@ -23,15 +23,13 @@ export default function Alerts() {
 
   return (
     <>
-      <PageHead
-        no="03" section="Cảnh báo"
-        title={<>Khi nào hệ thống <em>lên tiếng</em></>}
-        lede="Hai nguồn cảnh báo: đột biến số dòng lỗi của một component so với mức nền của chính nó, và các block có điểm bất thường cao nhất."
+      <PageTitle
+        title="Cảnh báo"
+        lede={<>Hai nguồn: đột biến số dòng lỗi của một component so với mức nền của chính nó, và các block có điểm bất thường cao nhất. Ô <span className="mark">vàng</span> là nghiêm trọng, ô xanh là cảnh báo.</>}
       />
 
       <Section
-        title="Cảnh báo" label="Theo thời gian"
-        note="Sắp xếp mới nhất trước."
+        title="Danh sách cảnh báo"
         tools={
           <Segmented<Filter> label="Mức độ" value={sev} onChange={setSev} options={[
             { value: "all", label: "Tất cả" },
@@ -39,12 +37,12 @@ export default function Alerts() {
             { value: "warning", label: "Cảnh báo" },
           ]} />
         }
+        note="Sắp xếp mới nhất trước."
       >
         <Async q={alerts}>{(d) => <AlertList alerts={d} />}</Async>
       </Section>
 
-      <Section title="Ma trận lỗi" label="Component × mức độ"
-               note="Màu đậm hơn nghĩa là nhiều dòng hơn (thang log). INFO không hiển thị.">
+      <Section title="Ma trận lỗi" note="Component × mức độ. Ô đậm hơn nghĩa là nhiều dòng hơn (thang log). INFO không hiển thị.">
         <Async q={comps}>
           {(rows) => {
             const max = Math.max(...rows.flatMap((r) => [r.warn, r.error, r.fatal]), 1);

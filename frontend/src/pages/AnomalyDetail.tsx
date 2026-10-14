@@ -1,15 +1,44 @@
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import type { S } from "../api/client";
 import { useAnomaly, useModels } from "../api/hooks";
-import { Async, LevelMark, PageHead, ScoreMeter, Section } from "../components/ui";
+import { Async, LevelMark, PageTitle, ScoreMeter, Section } from "../components/ui";
 import { fmtClockSec, fmtInt, fmtNum, fmtOffset, fmtStamp } from "../lib/format";
 import { useDocumentTitle } from "../lib/hooks";
 
 const NAME: Record<S["ModelName"], string> = { kmeans: "KMeans", iforest: "Isolation Forest", zscore: "Z-score" };
+const TICK_H: Record<S["Level"], number> = { INFO: 14, WARN: 28, ERROR: 42, FATAL: 54 };
+const TICK_FILL: Record<S["Level"], string> = {
+  INFO: "var(--gray)", WARN: "var(--blue)", ERROR: "var(--ink)", FATAL: "var(--yellow)",
+};
 
 function duration(a: string, b: string) {
   const s = Math.round((new Date(b).getTime() - new Date(a).getTime()) / 1000);
   return s < 60 ? `${s} s` : `${Math.floor(s / 60)} ph ${s % 60} s`;
+}
+
+/** Dải thời gian: mỗi dòng log là một vạch đặt theo thời điểm, cao và đậm theo mức độ. */
+function TimeStrip({ lines }: { lines: S["LogLine"][] }) {
+  const t0 = new Date(lines[0].ts).getTime();
+  const span = Math.max(1, new Date(lines[lines.length - 1].ts).getTime() - t0);
+  return (
+    <figure>
+      <svg width="100%" height="64" role="img" aria-label={`${lines.length} dòng log theo thời gian`}>
+        <rect x="0" y="58" width="100%" height="4" style={{ fill: "var(--ink)" }} />
+        {lines.map((ln, i) => {
+          const x = ((new Date(ln.ts).getTime() - t0) / span) * 100;
+          const h = TICK_H[ln.level];
+          return (
+            <rect key={i} x={`calc(${x}% - 3px)`} y={58 - h} width="6" height={h}
+                  style={{ fill: TICK_FILL[ln.level], stroke: ln.level === "FATAL" ? "var(--ink)" : "none", strokeWidth: 1.5 }} />
+          );
+        })}
+      </svg>
+      <figcaption className="legend" style={{ justifyContent: "space-between", marginTop: 8 }}>
+        <span className="mono">+0 s</span><span>vạch cao và đậm hơn = mức nặng hơn</span>
+        <span className="mono">+{duration(lines[0].ts, lines[lines.length - 1].ts)}</span>
+      </figcaption>
+    </figure>
+  );
 }
 
 export default function AnomalyDetail() {
@@ -29,23 +58,21 @@ export default function AnomalyDetail() {
           const thrOf = (m: S["ModelName"]) => models.data?.find((x) => x.name === m)?.threshold ?? d.threshold;
           return (
             <>
-              <PageHead
-                no="02" section="Bất thường · chi tiết"
-                title={<span className="mono" style={{ fontSize: "clamp(24px, 3.6vw, 44px)", letterSpacing: "-0.02em", overflowWrap: "anywhere" }}>{it.block_id}</span>}
+              <PageTitle
+                isId title={it.block_id}
                 lede={it.is_anomaly
-                  ? <>{NAME[it.model]} gắn cờ block này với điểm {fmtNum(it.anomaly_score, 3)}, vượt ngưỡng {fmtNum(d.threshold, 3)}.</>
+                  ? <>{NAME[it.model]} gắn cờ block này với điểm <span className="mark">{fmtNum(it.anomaly_score, 3)}</span>, vượt ngưỡng {fmtNum(d.threshold, 3)}.</>
                   : <>{NAME[it.model]} không gắn cờ block này: điểm {fmtNum(it.anomaly_score, 3)} thấp hơn ngưỡng {fmtNum(d.threshold, 3)}.</>}
               />
-
-              <dl className="kv" style={{ marginBottom: 44 }}>
-                <div><dt className="label">Nhãn thật (LogHub)</dt><dd className={d.label === "Anomaly" ? "signal" : undefined}>{d.label === "Anomaly" ? "Bất thường" : "Bình thường"}</dd></div>
-                <div><dt className="label">Số dòng</dt><dd>{fmtInt(it.line_count)}</dd></div>
-                <div><dt className="label">WARN · ERROR</dt><dd>{it.warn_count} · <span className={it.error_count ? "signal" : undefined}>{it.error_count}</span></dd></div>
-                <div><dt className="label">Kéo dài</dt><dd>{duration(it.first_ts, it.last_ts)}</dd></div>
-                <div><dt className="label">Bắt đầu (UTC)</dt><dd className="m">{fmtStamp(it.first_ts)}</dd></div>
+              <dl className="kv">
+                <div><dt>Nhãn thật (LogHub)</dt><dd className={d.label === "Anomaly" ? "hl" : undefined}>{d.label === "Anomaly" ? "Bất thường" : "Bình thường"}</dd></div>
+                <div><dt>Số dòng</dt><dd>{fmtInt(it.line_count)}</dd></div>
+                <div><dt>WARN · ERROR</dt><dd>{it.warn_count} · {it.error_count}</dd></div>
+                <div><dt>Kéo dài</dt><dd>{duration(it.first_ts, it.last_ts)}</dd></div>
+                <div><dt>Bắt đầu (UTC)</dt><dd className="m">{fmtStamp(it.first_ts)}</dd></div>
               </dl>
 
-              <Section label="So sánh" title="Điểm theo từng mô hình" note="Cùng một block, ba cách nhìn khác nhau.">
+              <Section title="Điểm theo từng mô hình" note="Cùng một block, ba cách nhìn khác nhau. Nhãn thật chỉ để đối chiếu, không dùng khi huấn luyện.">
                 <div className="tbl-wrap">
                   <table className="tbl">
                     <thead><tr><th>Mô hình</th><th>Điểm · ngưỡng</th><th className="r">Điểm</th><th>Kết luận</th></tr></thead>
@@ -54,7 +81,7 @@ export default function AnomalyDetail() {
                         const t = thrOf(s.model);
                         return (
                           <tr key={s.model}>
-                            <td className="serif" style={{ fontSize: 18 }}>{NAME[s.model]}</td>
+                            <td className="name">{NAME[s.model]}</td>
                             <td><ScoreMeter score={s.score} threshold={t} max={Math.max(t * 1.8, s.score)} /></td>
                             <td className="r mono num">{fmtNum(s.score, 3)}</td>
                             <td><span className="pill" data-on={s.is_anomaly}>{s.is_anomaly ? "Bất thường" : "Bình thường"}</span></td>
@@ -66,8 +93,7 @@ export default function AnomalyDetail() {
                 </div>
               </Section>
 
-              <Section label="Giải thích" title="Vì sao khác thường"
-                       note="So số lần xuất hiện của mỗi sự kiện với trung bình các block không bị gắn cờ.">
+              <Section title="Vì sao khác thường" note="So số lần xuất hiện của mỗi sự kiện với trung bình các block không bị gắn cờ.">
                 {d.reasons.length === 0 ? <p className="state">Block này gần như trùng với nếp thường.</p> : (
                   <div className="tbl-wrap">
                     <table className="tbl">
@@ -78,7 +104,7 @@ export default function AnomalyDetail() {
                             <td><div className="id" style={{ overflowWrap: "anywhere" }}>{r.template}</div><div className="cap">{r.event_id}</div></td>
                             <td className="r mono num">{r.observed}</td>
                             <td className="r mono num">{fmtNum(r.expected, 1)}</td>
-                            <td className="muted" style={{ fontSize: 13.5 }}>{r.note}</td>
+                            <td style={{ fontSize: 14 }}>{r.note}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -87,19 +113,20 @@ export default function AnomalyDetail() {
                 )}
               </Section>
 
-              <Section label="Dòng thời gian" title="Chuỗi sự kiện" note={`${fmtInt(d.timeline.length)} dòng, từ lúc cấp phát block.`}>
-                <div>
+              <Section title="Dải thời gian">
+                <TimeStrip lines={d.timeline} />
+              </Section>
+
+              <Section title="Chuỗi sự kiện" note={`${fmtInt(d.timeline.length)} dòng, từ lúc cấp phát block. Dòng lỗi được tô vàng.`}>
+                <ul className="seq">
                   {d.timeline.map((ln, i) => (
-                    <div className="logline" data-l={ln.level} key={i}>
-                      <span className="logline__ts num">
-                        {fmtOffset(ln.ts, it.first_ts)}
-                        <span className="logline__comp">{fmtClockSec(ln.ts)}</span>
-                      </span>
+                    <li data-l={ln.level} key={i}>
+                      <span className="seq__t num">{fmtOffset(ln.ts, it.first_ts)}<small>{fmtClockSec(ln.ts)}</small></span>
                       <LevelMark level={ln.level} />
-                      <span className="logline__c">{ln.content}<span className="logline__comp">{ln.component}</span></span>
-                    </div>
+                      <span style={{ overflowWrap: "anywhere" }}>{ln.content}<span className="logline__comp">{ln.component}</span></span>
+                    </li>
                   ))}
-                </div>
+                </ul>
               </Section>
             </>
           );
