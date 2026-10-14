@@ -13,6 +13,12 @@ ruff check .                                            # lint (cấu hình ở 
 
 Cần **Python ≥ 3.11** (code dùng `datetime.UTC`); env `logad` đã là 3.11.
 
+## Thư viện và Docker
+- `requirements.txt`: chỉ thư viện **chạy** backend; đây cũng là thứ duy nhất được cài vào image Docker.
+- `requirements-dev.txt`: thêm pytest, httpx, jsonschema, ruff… cho phát triển (env `logad` cài file này).
+- `Dockerfile`: Python 3.12-slim, chạy bằng user thường (uid 10001), có `HEALTHCHECK` gọi `/api/v1/health`.
+  Build từ **thư mục gốc dự án**: `docker build -f backend/Dockerfile -t logad-api .` (hoặc `docker compose up -d --build`).
+
 ## Endpoint
 Danh sách đầy đủ nằm trong `../api/openapi.yaml` và trang `/docs` khi chạy. Có thêm
 `GET /api/v1/anomalies/export` (CSV, cùng bộ lọc với danh sách, tối đa `limit` dòng, mặc định 1000).
