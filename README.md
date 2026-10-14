@@ -20,15 +20,21 @@ docker-compose.yml   HDFS + Spark + Elasticsearch + Kibana (chưa chạy thử)
 
 ## Môi trường Anaconda (làm một lần)
 Dùng **một env riêng tên `logad`** cho dự án này (đừng dùng chung với `bigdata-transport` hay env khác để khỏi xung đột phiên bản `pyspark`).
-[`environment.yml`](environment.yml) cài sẵn Python 3.11, OpenJDK 17 (cho PySpark chạy local) và toàn bộ thư viện của pipeline + backend.
+[`environment.yml`](environment.yml) cài Python 3.11 và OpenJDK 17 (cho PySpark chạy local); thư viện Python cài bằng pip ở bước 2.
+Làm trong **Anaconda Prompt**, tại thư mục gốc dự án:
 
-```powershell
-cd D:\DaiHoc\HocKy1_Nam4_Nam2026\BigData\project-final
-conda env create -f environment.yml      # tạo env "logad" (vài phút, tải khoảng 0,5–1 GB)
+```bat
+cd /d D:\DaiHoc\HocKy1_Nam4_Nam2026\BigData\bigdata-log-anomaly-detection
+conda env create -f environment.yml                                  &:: bước 1: tạo env "logad"
 conda activate logad
+pip install -r requirements.txt -r backend/requirements.txt         &:: bước 2: ~0,5 GB (pyspark ~320 MB)
 ```
-Sau này thêm thư viện: sửa `requirements.txt` / `backend/requirements.txt` rồi `conda env update -f environment.yml --prune`.
-Muốn xóa để làm lại: `conda env remove -n logad`.
+Tách hai bước vì nếu để conda tự gọi pip lúc tạo env, trên Windows có thể lỗi `gzip module is not available`.
+Thêm thư viện về sau: sửa file `requirements.txt` rồi chạy lại lệnh `pip install` ở bước 2.
+Muốn làm lại từ đầu: `conda env remove -n logad`.
+
+Chạy Spark local trên Windows: dùng `get_spark(cfg, local=True)` (đã tự trỏ `PYSPARK_PYTHON` về Python của env).
+Cảnh báo `winutils.exe` khi chạy Spark là vô hại, bỏ qua được.
 
 Node.js (cho frontend) dùng bản cài sẵn trên máy (cần Node ≥ 20); không bắt buộc cài trong conda.
 
