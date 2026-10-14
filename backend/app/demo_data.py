@@ -12,13 +12,13 @@ import random
 import re
 import time
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC
 
 import numpy as np
 
 from .schemas import LogLine
 
-START = datetime(2008, 11, 9, 20, 0, 0, tzinfo=timezone.utc)
+START = datetime(2008, 11, 9, 20, 0, 0, tzinfo=UTC)
 SPAN_SECONDS = 24 * 3600
 # hai cửa sổ sự cố (giây kể từ START): xác suất bất thường tăng mạnh
 INCIDENTS = [(6 * 3600, 6 * 3600 + 40 * 60), (17 * 3600, 17 * 3600 + 25 * 60)]
@@ -186,6 +186,40 @@ def _c_factor(m: np.ndarray) -> np.ndarray:
     return out
 
 
+def _build_itree(X: np.ndarray, sample: np.ndarray, rng: np.random.Generator, max_depth: int) -> tuple[np.ndarray, ...]:
+    """Dựng một cây cô lập; trả về mảng (feature, threshold, left, right, size) theo chỉ số nút."""
+    feats: list[int] = []
+    thr: list[float] = []
+    left: list[int] = []
+    right: list[int] = []
+    size: list[int] = []
+
+    def build(idx: np.ndarray, depth: int) -> int:
+        node = len(feats)
+        feats.append(-1)
+        thr.append(0.0)
+        left.append(0)
+        right.append(0)
+        size.append(len(idx))
+        if depth >= max_depth or len(idx) <= 1:
+            return node
+        sub = X[idx]
+        lo, hi = sub.min(0), sub.max(0)
+        cand = np.flatnonzero(hi > lo)
+        if cand.size == 0:
+            return node
+        f = int(rng.choice(cand))
+        t = float(rng.uniform(lo[f], hi[f]))
+        m = sub[:, f] < t
+        feats[node], thr[node] = f, t
+        left[node] = build(idx[m], depth + 1)
+        right[node] = build(idx[~m], depth + 1)
+        return node
+
+    build(sample, 0)
+    return tuple(map(np.array, (feats, thr, left, right, size)))
+
+
 def _iforest(X: np.ndarray, rng: np.random.Generator, n_trees: int = 100, psi: int = 256) -> np.ndarray:
     n = X.shape[0]
     psi = min(psi, n)
@@ -193,32 +227,7 @@ def _iforest(X: np.ndarray, rng: np.random.Generator, n_trees: int = 100, psi: i
     depth_acc = np.zeros(n)
     rows = np.arange(n)
     for _ in range(n_trees):
-        feats: list[int] = []
-        thr: list[float] = []
-        left: list[int] = []
-        right: list[int] = []
-        size: list[int] = []
-
-        def build(sample: np.ndarray, depth: int) -> int:
-            node = len(feats)
-            feats.append(-1); thr.append(0.0); left.append(0); right.append(0); size.append(len(sample))
-            if depth >= max_depth or len(sample) <= 1:
-                return node
-            sub = X[sample]
-            lo, hi = sub.min(0), sub.max(0)
-            cand = np.flatnonzero(hi > lo)
-            if cand.size == 0:
-                return node
-            f = int(rng.choice(cand))
-            t = float(rng.uniform(lo[f], hi[f]))
-            m = sub[:, f] < t
-            feats[node], thr[node] = f, t
-            left[node] = build(sample[m], depth + 1)
-            right[node] = build(sample[~m], depth + 1)
-            return node
-
-        build(rng.choice(n, psi, replace=False), 0)
-        fa, ta, la, ra, sa = map(np.array, (feats, thr, left, right, size))
+        fa, ta, la, ra, sa = _build_itree(X, rng.choice(n, psi, replace=False), rng, max_depth)
         node = np.zeros(n, dtype=int)
         d = np.zeros(n)
         for _ in range(max_depth + 1):
@@ -242,8 +251,10 @@ def _average_precision(score: np.ndarray, y: np.ndarray) -> float:
 
 
 def _prf(pred: np.ndarray, y: np.ndarray) -> tuple[float, float, float, dict[str, int]]:
-    tp = int((pred & y).sum()); fp = int((pred & ~y).sum())
-    fn = int((~pred & y).sum()); tn = int((~pred & ~y).sum())
+    tp = int((pred & y).sum())
+    fp = int((pred & ~y).sum())
+    fn = int((~pred & y).sum())
+    tn = int((~pred & ~y).sum())
     p = tp / (tp + fp) if tp + fp else 0.0
     rc = tp / (tp + fn) if tp + fn else 0.0
     f1 = 2 * p * rc / (p + rc) if p + rc else 0.0

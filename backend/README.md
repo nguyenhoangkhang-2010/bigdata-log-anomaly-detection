@@ -7,8 +7,16 @@ Dùng env Anaconda `logad` (tạo từ `environment.yml` ở thư mục gốc, x
 ```bash
 conda activate logad
 python -m uvicorn app.main:app --reload --port 8000    # http://localhost:8000/docs
-python -m pytest -q                                     # 17 test, gồm test hợp đồng
+python -m pytest -q                                     # 31 test, gồm test hợp đồng
+ruff check .                                            # lint (cấu hình ở ruff.toml)
 ```
+
+Cần **Python ≥ 3.11** (code dùng `datetime.UTC`); env `logad` đã là 3.11.
+
+## Endpoint
+Danh sách đầy đủ nằm trong `../api/openapi.yaml` và trang `/docs` khi chạy. Có thêm
+`GET /api/v1/anomalies/export` (CSV, cùng bộ lọc với danh sách, tối đa `limit` dòng, mặc định 1000).
+Route này khai báo **trước** `/anomalies/{block_id}` trong `app/routes.py`, đừng đổi thứ tự.
 
 ## Nguồn dữ liệu (`LOGAD_DATA_SOURCE`)
 | Giá trị | Ý nghĩa |

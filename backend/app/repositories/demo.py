@@ -1,14 +1,14 @@
 """Repository chạy trên DemoDataset (dữ liệu mô phỏng trong bộ nhớ)."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, UTC
 from functools import cached_property
 
 import numpy as np
 
 from ..demo_data import DemoDataset
 from ..schemas import (
-    Alert, AnomalyDetail, AnomalyItem, AnomalyPage, ComponentStat, Confusion, EventTemplate, Level, LogPage,
+    Alert, AnomalyDetail, AnomalyItem, AnomalyPage, ComponentStat, Confusion, EventTemplate, LogPage,
     Meta, MetaDataset, MetaRun, ModelEval, ModelName, ModelScore, Reason, ScoreBin, ScoreDistribution,
     Severity, Summary, TimeRange, Timeline, TimelinePoint, LogLine,
 )
@@ -70,7 +70,7 @@ class DemoRepository:
         a_idx = np.array([int((d.first_ts[i].timestamp() - base) // sec) for i in fl], dtype=int)
         anom = np.bincount(a_idx, minlength=nb) if len(a_idx) else np.zeros(nb, dtype=int)
         pts = [
-            TimelinePoint(ts=datetime.fromtimestamp(base + j * sec, tz=timezone.utc), info=int(per[0][j]),
+            TimelinePoint(ts=datetime.fromtimestamp(base + j * sec, tz=UTC), info=int(per[0][j]),
                           warn=int(per[1][j]), error=int(per[2][j]), fatal=int(per[3][j]), anomalies=int(anom[j]))
             for j in range(nb)
         ]
@@ -124,7 +124,7 @@ class DemoRepository:
                     alerts.append(Alert(
                         id=f"spike-{comp}-{j}", kind="error_spike",
                         severity="critical" if zpk >= 8 else "warning",
-                        ts=datetime.fromtimestamp(base + j * sec, tz=timezone.utc),
+                        ts=datetime.fromtimestamp(base + j * sec, tz=UTC),
                         title=f"Đột biến lỗi ở {comp}",
                         detail=f"{int(series[pk])} dòng WARN/ERROR trong 5 phút (trung bình {mu:.1f}, z = {zpk:.1f})",
                         component=comp, score=round(zpk, 2),
@@ -182,7 +182,8 @@ class DemoRepository:
         score = d.scores[m]
         mask = d.flags[m].copy() if only_flagged else np.ones(len(score), dtype=bool)
         if min_score is not None:
-            mask &= score >= min_score
+            # so sánh theo điểm đã làm tròn như hiển thị (4 chữ số) để nhập đúng số đang thấy không loại mất chính block đó
+            mask &= np.round(score, 4) >= min_score
         idx = np.flatnonzero(mask)
         if q:
             idx = np.array([i for i in idx if q.lower() in d.block_ids[i].lower()], dtype=int)
