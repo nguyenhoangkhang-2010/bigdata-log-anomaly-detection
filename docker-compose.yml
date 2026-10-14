@@ -1,0 +1,101 @@
+# Hạ tầng Big Data cho đồ án: HDFS + Spark + Elasticsearch + Kibana
+# Chạy:  docker compose up -d      |  Dừng: docker compose down
+# LƯU Ý: chưa kiểm thử pull image/khởi động - kiểm tra lại ở Tuần 1-3.
+
+services:
+
+  # ---------- HDFS ----------
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: logad-namenode
+    restart: unless-stopped
+    environment:
+      CLUSTER_NAME: logad
+      CORE_CONF_fs_defaultFS: hdfs://namenode:9000
+      HDFS_CONF_dfs_replication: "1"
+      HDFS_CONF_dfs_webhdfs_enabled: "true"
+      HDFS_CONF_dfs_permissions_enabled: "false"
+    ports:
+      - "${HDFS_UI_PORT:-9870}:9870"
+      - "${HDFS_RPC_PORT:-9000}:9000"
+    volumes:
+      - namenode_data:/hadoop/dfs/name
+      - ./data:/data:ro
+
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: logad-datanode
+    restart: unless-stopped
+    depends_on:
+      - namenode
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870"
+      CORE_CONF_fs_defaultFS: hdfs://namenode:9000
+      HDFS_CONF_dfs_replication: "1"
+    volumes:
+      - datanode_data:/hadoop/dfs/data
+
+  # ---------- Spark (standalone) ----------
+  spark-master:
+    image: apache/spark:3.5.3-python3
+    container_name: logad-spark-master
+    restart: unless-stopped
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+    environment:
+      PYTHONPATH: /opt/project/src
+    ports:
+      - "${SPARK_UI_PORT:-8080}:8080"
+      - "7077:7077"
+    volumes:
+      - ./src:/opt/project/src:ro
+      - ./jobs:/opt/project/jobs:ro
+      - ./configs:/opt/project/configs:ro
+      - ./models:/opt/project/models
+      - ./data:/opt/project/data
+
+  spark-worker:
+    image: apache/spark:3.5.3-python3
+    container_name: logad-spark-worker
+    restart: unless-stopped
+    depends_on:
+      - spark-master
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    environment:
+      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-2}
+      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-3g}
+      PYTHONPATH: /opt/project/src
+    volumes:
+      - ./src:/opt/project/src:ro
+      - ./configs:/opt/project/configs:ro
+      - ./models:/opt/project/models
+      - ./data:/opt/project/data
+
+  # ---------- Elasticsearch + Kibana (dashboard) ----------
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    container_name: logad-elasticsearch
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms1g -Xmx1g"
+    ports:
+      - "${ES_PORT:-9200}:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.15.3
+    container_name: logad-kibana
+    restart: unless-stopped
+    depends_on:
+      - elasticsearch
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports:
+      - "${KIBANA_PORT:-5601}:5601"
+
+volumes:
+  namenode_data:
+  datanode_data:
+  es_data:

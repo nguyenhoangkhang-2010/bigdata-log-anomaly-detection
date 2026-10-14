@@ -1,0 +1,27 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# dữ liệu lớn - không commit (xem data/README.md để tải)
+data/raw/*
+data/interim/*
+data/processed/*
+!data/**/.gitkeep
+!data/README.md
+
+# model đã train
+models/*
+!models/.gitkeep
+
+# file báo cáo build ra
+*.tmp
+~$*
+
+# frontend / backend
+node_modules/
+frontend/dist/
+*.tsbuildinfo

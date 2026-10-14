@@ -1,0 +1,564 @@
+openapi: 3.1.0
+info:
+  title: LogAD API
+  version: 0.1.0
+  summary: API phân tích nhật ký hệ thống và phát hiện bất thường (Đề tài 13).
+  description: |
+    **Hợp đồng gốc (API-first).** Backend (FastAPI) và frontend (React) cùng bám file này.
+    - Backend: `backend/tests/test_contract.py` so khớp route, tham số và schema với file này.
+    - Frontend: `npm run gen:api` sinh `src/api/schema.d.ts` từ file này.
+    Muốn đổi API: sửa file này trước, rồi mới sửa code hai phía.
+servers:
+  - url: http://localhost:8000
+    description: Backend chạy local
+tags:
+  - name: system
+  - name: overview
+  - name: anomalies
+  - name: events
+  - name: models
+  - name: logs
+
+paths:
+  /api/v1/health:
+    get:
+      operationId: getHealth
+      tags: [system]
+      summary: Kiểm tra tình trạng dịch vụ
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Health" }
+
+  /api/v1/meta:
+    get:
+      operationId: getMeta
+      tags: [system]
+      summary: Thông tin bộ dữ liệu, nguồn dữ liệu và lần chạy pipeline
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Meta" }
+
+  /api/v1/overview/summary:
+    get:
+      operationId: getSummary
+      tags: [overview]
+      summary: Các chỉ số tổng quan
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Summary" }
+
+  /api/v1/overview/timeline:
+    get:
+      operationId: getTimeline
+      tags: [overview]
+      summary: Số dòng log theo mức độ và số block bất thường theo thời gian
+      parameters:
+        - name: bucket
+          in: query
+          schema: { $ref: "#/components/schemas/Bucket" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Timeline" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /api/v1/overview/components:
+    get:
+      operationId: getComponents
+      tags: [overview]
+      summary: Thống kê theo thành phần (component), nhiều lỗi nhất trước
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 10 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ComponentStat" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /api/v1/alerts:
+    get:
+      operationId: listAlerts
+      tags: [overview]
+      summary: Cảnh báo (đột biến lỗi, block bất thường), mới nhất trước
+      parameters:
+        - name: severity
+          in: query
+          schema: { $ref: "#/components/schemas/Severity" }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 20 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Alert" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /api/v1/anomalies:
+    get:
+      operationId: listAnomalies
+      tags: [anomalies]
+      summary: Danh sách block theo điểm bất thường
+      parameters:
+        - name: model
+          in: query
+          description: Mặc định là mô hình chính (`kmeans`).
+          schema: { $ref: "#/components/schemas/ModelName" }
+        - name: only_flagged
+          in: query
+          description: Chỉ lấy block bị gắn cờ bất thường.
+          schema: { type: boolean, default: true }
+        - name: min_score
+          in: query
+          schema: { type: number, minimum: 0 }
+        - name: q
+          in: query
+          description: Tìm theo một phần block_id.
+          schema: { type: string, maxLength: 64 }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [score_desc, score_asc, time_desc, time_asc, lines_desc], default: score_desc }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: page_size
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnomalyPage" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /api/v1/anomalies/{block_id}:
+    get:
+      operationId: getAnomaly
+      tags: [anomalies]
+      summary: Chi tiết một block - chuỗi sự kiện và lý do bị gắn cờ
+      parameters:
+        - name: block_id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: model
+          in: query
+          schema: { $ref: "#/components/schemas/ModelName" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnomalyDetail" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /api/v1/events:
+    get:
+      operationId: listEvents
+      tags: [events]
+      summary: Các template sự kiện và mức độ liên quan đến bất thường
+      parameters:
+        - name: sort
+          in: query
+          schema: { type: string, enum: [count_desc, lift_desc], default: lift_desc }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/EventTemplate" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /api/v1/models:
+    get:
+      operationId: listModels
+      tags: [models]
+      summary: Kết quả đánh giá của từng mô hình
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ModelEval" }
+
+  /api/v1/models/{model}/score-distribution:
+    get:
+      operationId: getScoreDistribution
+      tags: [models]
+      summary: Phân bố điểm bất thường tách theo nhãn thật
+      parameters:
+        - name: model
+          in: path
+          required: true
+          schema: { $ref: "#/components/schemas/ModelName" }
+        - name: bins
+          in: query
+          schema: { type: integer, minimum: 5, maximum: 100, default: 40 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScoreDistribution" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /api/v1/logs:
+    get:
+      operationId: searchLogs
+      tags: [logs]
+      summary: Tìm dòng log
+      parameters:
+        - name: q
+          in: query
+          description: Chuỗi con trong nội dung (không phân biệt hoa thường).
+          schema: { type: string, maxLength: 200 }
+        - name: level
+          in: query
+          schema: { $ref: "#/components/schemas/Level" }
+        - name: component
+          in: query
+          schema: { type: string }
+        - name: block_id
+          in: query
+          schema: { type: string }
+        - name: start
+          in: query
+          schema: { type: string, format: date-time }
+        - name: end
+          in: query
+          schema: { type: string, format: date-time }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: page_size
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LogPage" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+components:
+  responses:
+    NotFound:
+      description: Không tìm thấy
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    ValidationError:
+      description: Tham số không hợp lệ
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Problem" }
+
+  schemas:
+    Level:
+      type: string
+      enum: [INFO, WARN, ERROR, FATAL]
+    Severity:
+      type: string
+      enum: [critical, warning, info]
+    ModelName:
+      type: string
+      enum: [kmeans, iforest, zscore]
+    Bucket:
+      type: string
+      enum: [1m, 5m, 15m, 1h]
+      default: 1h
+    DataSource:
+      type: string
+      enum: [demo, elasticsearch]
+
+    Problem:
+      type: object
+      required: [status, title]
+      properties:
+        status: { type: integer }
+        title: { type: string }
+        detail: { type: [string, "null"] }
+
+    Health:
+      type: object
+      required: [status, data_source]
+      properties:
+        status: { type: string, enum: [ok, degraded] }
+        data_source: { $ref: "#/components/schemas/DataSource" }
+
+    TimeRange:
+      type: object
+      required: [start, end]
+      properties:
+        start: { type: string, format: date-time }
+        end: { type: string, format: date-time }
+
+    Meta:
+      type: object
+      required: [dataset, data_source, time_range, models, primary_model, pipeline_run, version]
+      properties:
+        dataset:
+          type: object
+          required: [name, description]
+          properties:
+            name: { type: string }
+            description: { type: string }
+        data_source:
+          $ref: "#/components/schemas/DataSource"
+        is_synthetic:
+          type: boolean
+          description: true khi dữ liệu là dữ liệu mô phỏng để phát triển giao diện, chưa phải kết quả pipeline thật.
+          default: false
+        time_range: { $ref: "#/components/schemas/TimeRange" }
+        models:
+          type: array
+          items: { $ref: "#/components/schemas/ModelName" }
+        primary_model: { $ref: "#/components/schemas/ModelName" }
+        pipeline_run:
+          type: object
+          required: [id, finished_at]
+          properties:
+            id: { type: string }
+            finished_at: { type: string, format: date-time }
+        version: { type: string }
+
+    Summary:
+      type: object
+      required: [total_lines, total_blocks, anomalous_blocks, anomaly_rate, warn_lines, error_lines, error_rate, active_alerts]
+      properties:
+        total_lines: { type: integer }
+        total_blocks: { type: integer }
+        anomalous_blocks: { type: integer }
+        anomaly_rate: { type: number, description: "Tỉ lệ 0..1" }
+        warn_lines: { type: integer }
+        error_lines: { type: integer, description: "ERROR + FATAL" }
+        error_rate: { type: number, description: "Tỉ lệ 0..1 trên tổng số dòng" }
+        active_alerts: { type: integer }
+
+    TimelinePoint:
+      type: object
+      required: [ts, info, warn, error, fatal, anomalies]
+      properties:
+        ts: { type: string, format: date-time }
+        info: { type: integer }
+        warn: { type: integer }
+        error: { type: integer }
+        fatal: { type: integer }
+        anomalies: { type: integer, description: Số block bất thường bắt đầu trong khoảng này }
+
+    Timeline:
+      type: object
+      required: [bucket, points]
+      properties:
+        bucket: { $ref: "#/components/schemas/Bucket" }
+        points:
+          type: array
+          items: { $ref: "#/components/schemas/TimelinePoint" }
+
+    ComponentStat:
+      type: object
+      required: [component, total, warn, error, fatal]
+      properties:
+        component: { type: string }
+        total: { type: integer }
+        warn: { type: integer }
+        error: { type: integer }
+        fatal: { type: integer }
+
+    Alert:
+      type: object
+      required: [id, kind, severity, ts, title, detail]
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [error_spike, anomalous_block] }
+        severity: { $ref: "#/components/schemas/Severity" }
+        ts: { type: string, format: date-time }
+        title: { type: string }
+        detail: { type: string }
+        component: { type: [string, "null"] }
+        block_id: { type: [string, "null"] }
+        score: { type: [number, "null"] }
+
+    AnomalyItem:
+      type: object
+      required: [block_id, model, anomaly_score, is_anomaly, first_ts, last_ts, line_count, warn_count, error_count, top_events]
+      properties:
+        block_id: { type: string }
+        model: { $ref: "#/components/schemas/ModelName" }
+        anomaly_score: { type: number }
+        is_anomaly: { type: boolean }
+        cluster: { type: [integer, "null"], description: Chỉ có với kmeans }
+        first_ts: { type: string, format: date-time }
+        last_ts: { type: string, format: date-time }
+        line_count: { type: integer }
+        warn_count: { type: integer }
+        error_count: { type: integer }
+        top_events:
+          type: array
+          description: Tối đa 3 event_id nổi bật nhất
+          items: { type: string }
+
+    AnomalyPage:
+      type: object
+      required: [items, total, page, page_size]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/AnomalyItem" }
+        total: { type: integer }
+        page: { type: integer }
+        page_size: { type: integer }
+
+    LogLine:
+      type: object
+      required: [ts, level, component, content, template, event_id]
+      properties:
+        ts: { type: string, format: date-time }
+        level: { $ref: "#/components/schemas/Level" }
+        component: { type: string }
+        block_id: { type: [string, "null"] }
+        content: { type: string }
+        template: { type: string }
+        event_id: { type: string }
+
+    LogPage:
+      type: object
+      required: [items, total, page, page_size]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/LogLine" }
+        total: { type: integer }
+        page: { type: integer }
+        page_size: { type: integer }
+
+    ModelScore:
+      type: object
+      required: [model, score, is_anomaly]
+      properties:
+        model: { $ref: "#/components/schemas/ModelName" }
+        score: { type: number }
+        is_anomaly: { type: boolean }
+
+    Reason:
+      type: object
+      required: [event_id, template, observed, expected, note]
+      properties:
+        event_id: { type: string }
+        template: { type: string }
+        observed: { type: integer, description: Số lần xuất hiện trong block này }
+        expected: { type: number, description: Số lần trung bình ở block bình thường }
+        note: { type: string }
+
+    AnomalyDetail:
+      type: object
+      required: [item, threshold, scores, reasons, timeline]
+      properties:
+        item: { $ref: "#/components/schemas/AnomalyItem" }
+        threshold: { type: number }
+        label:
+          type: [string, "null"]
+          enum: [Normal, Anomaly, null]
+          description: Nhãn thật của LogHub (chỉ để đối chiếu, không dùng khi huấn luyện)
+        scores:
+          type: array
+          items: { $ref: "#/components/schemas/ModelScore" }
+        reasons:
+          type: array
+          items: { $ref: "#/components/schemas/Reason" }
+        timeline:
+          type: array
+          items: { $ref: "#/components/schemas/LogLine" }
+
+    EventTemplate:
+      type: object
+      required: [event_id, template, level, count, block_count, anomaly_ratio, lift]
+      properties:
+        event_id: { type: string }
+        template: { type: string }
+        level: { $ref: "#/components/schemas/Level" }
+        count: { type: integer }
+        block_count: { type: integer }
+        anomaly_ratio:
+          type: number
+          description: Tỉ lệ lần xuất hiện nằm trong block bất thường (0..1)
+        lift:
+          type: number
+          description: anomaly_ratio chia cho tỉ lệ bất thường chung; >1 nghĩa là event nghiêng về block bất thường
+
+    Confusion:
+      type: object
+      required: [tp, fp, fn, tn]
+      properties:
+        tp: { type: integer }
+        fp: { type: integer }
+        fn: { type: integer }
+        tn: { type: integer }
+
+    ModelEval:
+      type: object
+      required: [name, label, kind, precision, recall, f1, pr_auc, threshold, confusion, train_seconds, params]
+      properties:
+        name: { $ref: "#/components/schemas/ModelName" }
+        label: { type: string }
+        kind: { type: string, enum: [distributed, single-node, statistical] }
+        precision: { type: number }
+        recall: { type: number }
+        f1: { type: number }
+        pr_auc: { type: number }
+        threshold: { type: number }
+        confusion: { $ref: "#/components/schemas/Confusion" }
+        train_seconds: { type: number }
+        params:
+          type: object
+          additionalProperties: true
+
+    ScoreBin:
+      type: object
+      required: [lower, upper, normal, anomaly]
+      properties:
+        lower: { type: number }
+        upper: { type: number }
+        normal: { type: integer }
+        anomaly: { type: integer }
+
+    ScoreDistribution:
+      type: object
+      required: [model, threshold, bins]
+      properties:
+        model: { $ref: "#/components/schemas/ModelName" }
+        threshold: { type: number }
+        bins:
+          type: array
+          items: { $ref: "#/components/schemas/ScoreBin" }

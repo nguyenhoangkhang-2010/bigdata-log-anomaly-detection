@@ -1,0 +1,13 @@
+# Dùng khi chạy local (ngoài Docker). Trong container Spark đã có sẵn pyspark.
+pyspark==3.5.3
+pyyaml>=6.0
+pandas>=2.0
+numpy>=1.26
+scikit-learn>=1.4        # Isolation Forest baseline + metrics
+pyarrow>=15.0            # đọc parquet từ pandas
+elasticsearch>=8.15,<9   # bulk index (phương án thay cho es-hadoop)
+requests>=2.31           # script tải dữ liệu
+matplotlib>=3.8          # biểu đồ cho báo cáo
+drain3>=0.9.11           # tùy chọn: mining template log
+pytest>=8.0
+ruff>=0.5

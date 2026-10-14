@@ -1,0 +1,88 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import type { S } from "../api/client";
+import { useComponents, useLogs } from "../api/hooks";
+import { Async, Empty, LevelMark, PageHead, Pager, Section } from "../components/ui";
+import { fmtInt, fmtStamp } from "../lib/format";
+import { useDebounced, useDocumentTitle, useUrlState } from "../lib/hooks";
+
+const DEFAULTS = { q: "", level: "", component: "", block: "", page: "1" };
+const PAGE_SIZE = 40;
+
+export default function Logs() {
+  useDocumentTitle("Nhật ký");
+  const [f, patch] = useUrlState(DEFAULTS);
+  const [qLocal, setQLocal] = useState(f.q);
+  const [bLocal, setBLocal] = useState(f.block);
+  const qd = useDebounced(qLocal, 300);
+  const bd = useDebounced(bLocal, 300);
+  useEffect(() => { if (qd !== f.q) patch({ q: qd }); }, [qd]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (bd !== f.block) patch({ block: bd }); }, [bd]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const comps = useComponents(50);
+  const page = Number(f.page) || 1;
+  const logs = useLogs({
+    q: f.q || undefined, level: (f.level || undefined) as S["Level"] | undefined,
+    component: f.component || undefined, block_id: f.block || undefined, page, page_size: PAGE_SIZE,
+  });
+
+  return (
+    <>
+      <PageHead
+        no="06" section="Nhật ký"
+        title={<>Đọc lại <em>từng dòng</em></>}
+        lede="Tìm trong toàn bộ nhật ký đã parse. Dòng WARN và ERROR được đánh dấu bằng vạch màu ở lề trái."
+      />
+      <Section title="Tìm kiếm" label="Bộ lọc">
+        <div className="filters">
+          <label className="field" style={{ flex: "1 1 240px" }}>
+            <span className="label">Nội dung chứa</span>
+            <input value={qLocal} onChange={(e) => setQLocal(e.target.value)} placeholder="vd. exception" />
+          </label>
+          <label className="field">
+            <span className="label">Mức độ</span>
+            <select value={f.level} onChange={(e) => patch({ level: e.target.value })}>
+              <option value="">Tất cả</option>
+              {(["INFO", "WARN", "ERROR", "FATAL"] as const).map((l) => <option key={l}>{l}</option>)}
+            </select>
+          </label>
+          <label className="field">
+            <span className="label">Component</span>
+            <select value={f.component} onChange={(e) => patch({ component: e.target.value })}>
+              <option value="">Tất cả</option>
+              {comps.data?.map((c) => <option key={c.component} value={c.component}>{c.component}</option>)}
+            </select>
+          </label>
+          <label className="field">
+            <span className="label">Block ID</span>
+            <input value={bLocal} onChange={(e) => setBLocal(e.target.value)} placeholder="blk_…" />
+          </label>
+        </div>
+
+        <Async q={logs}>
+          {(d) => d.items.length === 0 ? <Empty>Không có dòng log nào khớp.</Empty> : (
+            <>
+              <p className="label" style={{ marginBottom: 10 }}>{fmtInt(d.total)} dòng · mới nhất trước</p>
+              <div>
+                {d.items.map((ln, i) => (
+                  <div className="logline" data-l={ln.level} key={`${ln.ts}-${i}`}>
+                    <span className="logline__ts num">{fmtStamp(ln.ts)}</span>
+                    <LevelMark level={ln.level} />
+                    <span className="logline__c">
+                      {ln.content}
+                      <span className="logline__comp">
+                        {ln.component}
+                        {ln.block_id && <> · <Link to={`/anomalies/${encodeURIComponent(ln.block_id)}`}>xem block</Link></>}
+                      </span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <Pager page={d.page} pageSize={d.page_size} total={d.total} onPage={(p) => { patch({ page: String(p) }); window.scrollTo({ top: 0 }); }} />
+            </>
+          )}
+        </Async>
+      </Section>
+    </>
+  );
+}

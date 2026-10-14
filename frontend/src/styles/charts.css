@@ -1,0 +1,33 @@
+/* ───────── biểu đồ SVG (đều dùng biến màu của theme) ───────── */
+.chart { position: relative; width: 100%; user-select: none; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.chart text { font: 400 10.5px var(--mono); fill: var(--ink-3); }
+.chart .ax line { stroke: var(--rule); }
+.chart .ax .base { stroke: var(--ink); }
+.chart .tick { stroke: var(--ink-3); }
+.chart .cursor { stroke: var(--ink); stroke-width: 1; pointer-events: none; }
+.chart .hit { fill: transparent; cursor: crosshair; }
+
+.bar-info { fill: var(--lvl-info); }
+.bar-warn { fill: var(--lvl-warn); }
+.bar-error { fill: var(--lvl-error); }
+.bar-fatal { fill: var(--lvl-fatal); }
+.bar-normal { fill: var(--lvl-info); }
+.bar-anomaly { fill: var(--signal); }
+.area-info { fill: var(--paper-3); stroke: var(--ink); stroke-width: 1; }
+.mark-anom { fill: var(--signal); }
+.thr-line { stroke: var(--signal); stroke-width: 1; stroke-dasharray: 4 3; }
+.thr-text { fill: var(--signal) !important; }
+
+/* các cột mọc lên một lần khi nạp */
+.grow { transform-box: fill-box; transform-origin: bottom; animation: grow .5s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes grow { from { transform: scaleY(0); } }
+
+/* dòng đọc số liệu dưới biểu đồ (thay cho tooltip nổi) */
+.readout {
+  display: flex; gap: 22px; flex-wrap: wrap; align-items: baseline;
+  margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--rule);
+  font: 400 12.5px/1.4 var(--mono); min-height: 40px;
+}
+.readout b { font-weight: 500; }
+.readout .t { color: var(--ink-3); }

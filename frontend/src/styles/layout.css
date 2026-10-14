@@ -1,0 +1,106 @@
+/* ───────── khung trang: sidebar mục lục · thanh trên · nội dung · chân trang ───────── */
+.app {
+  display: grid;
+  grid-template-columns: var(--sidebar) minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+/* Sidebar giống mục lục của một ấn phẩm */
+.side {
+  position: sticky; top: 0; height: 100vh;
+  display: flex; flex-direction: column;
+  padding: 28px 24px 22px 28px;
+  border-right: 1px solid var(--ink);
+}
+.brand { display: block; }
+.brand:hover { text-decoration: none; }
+.brand__mark {
+  font: italic 400 38px/1 var(--serif);
+  letter-spacing: -0.03em;
+}
+.brand__mark b { font-style: normal; font-weight: 500; }
+.brand__tag { margin-top: 10px; }
+
+.nav { margin-top: 44px; border-top: 1px solid var(--ink); }
+.nav__item {
+  display: grid; grid-template-columns: 30px 1fr; align-items: baseline;
+  padding: 11px 0 10px;
+  border-bottom: 1px solid var(--rule);
+  position: relative;
+  transition: padding-left .18s ease;
+}
+.nav__item:hover { text-decoration: none; padding-left: 6px; }
+.nav__no { font: 500 11px/1 var(--mono); color: var(--ink-3); letter-spacing: .06em; }
+.nav__name { font: 400 21px/1.15 var(--serif); letter-spacing: -0.01em; }
+.nav__item[aria-current="page"] .nav__name { font-style: italic; }
+.nav__item[aria-current="page"] .nav__no { color: var(--signal); }
+.nav__item[aria-current="page"]::before {
+  content: ""; position: absolute; left: -28px; top: 50%; width: 14px; height: 2px; margin-top: -1px;
+  background: var(--signal);
+}
+
+.side__foot { margin-top: auto; display: grid; gap: 14px; padding-top: 24px; }
+.side__src { display: grid; gap: 4px; }
+.side__src .v { font: 400 13px/1.35 var(--mono); }
+
+.theme-btn {
+  justify-self: start; font: 500 11px/1 var(--mono); letter-spacing: .09em; text-transform: uppercase;
+  padding: 8px 10px; border: 1px solid var(--ink);
+}
+.theme-btn:hover { background: var(--ink); color: var(--paper); }
+
+/* Cột chính */
+.main { min-width: 0; display: flex; flex-direction: column; min-height: 100vh; }
+
+.synthetic {
+  background: var(--ink); color: var(--paper);
+  font: 500 11px/1.4 var(--mono); letter-spacing: .06em;
+  padding: 8px var(--gutter);
+  display: flex; gap: 10px; align-items: center;
+}
+.synthetic i { width: 8px; height: 8px; background: var(--signal); flex: none; }
+
+.strip {
+  display: flex; justify-content: space-between; gap: 16px; align-items: center;
+  padding: 11px var(--gutter);
+  border-bottom: 1px solid var(--rule);
+}
+.strip .label { white-space: nowrap; }
+.strip__r { display: flex; gap: 22px; flex-wrap: wrap; justify-content: flex-end; }
+.status-dot { display: inline-block; width: 7px; height: 7px; background: var(--ink); margin-right: 8px; vertical-align: 1px; }
+.status-dot[data-ok="true"] { background: #3d7a46; }
+.status-dot[data-ok="false"] { background: var(--signal); }
+:root[data-theme="dark"] .status-dot[data-ok="true"] { background: #7fbf86; }
+
+.page { padding: 0 var(--gutter) 72px; flex: 1; }
+.page__inner { max-width: 1240px; }
+
+/* chân trang */
+.colophon {
+  border-top: 1px solid var(--ink);
+  margin: 0 var(--gutter);
+  padding: 20px 0 28px;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px;
+}
+.colophon p { font: 400 12px/1.6 var(--mono); color: var(--ink-2); max-width: 44ch; }
+.colophon .label { display: block; margin-bottom: 8px; }
+
+/* thanh trên cho màn nhỏ */
+.topbar { display: none; }
+
+@media (max-width: 960px) {
+  .app { grid-template-columns: 1fr; }
+  .side { display: none; }
+  .topbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px var(--gutter); border-bottom: 1px solid var(--ink);
+    position: sticky; top: 0; background: var(--paper); z-index: 20;
+  }
+  .topbar .brand__mark { font-size: 30px; }
+  .menu-btn { font: 500 11px/1 var(--mono); letter-spacing: .09em; text-transform: uppercase; padding: 9px 11px; border: 1px solid var(--ink); }
+  .sheet { padding: 0 var(--gutter) 24px; border-bottom: 1px solid var(--ink); background: var(--paper); }
+  .sheet .nav { margin-top: 0; }
+  .colophon { grid-template-columns: 1fr; }
+  .strip__r { display: none; }
+}
+@media (min-width: 961px) { .sheet { display: none; } }

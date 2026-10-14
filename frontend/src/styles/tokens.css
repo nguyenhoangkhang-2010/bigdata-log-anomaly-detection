@@ -1,0 +1,84 @@
+/* Bảng màu: giấy ấm + mực. Một màu tín hiệu (đỏ son) chỉ dành cho bất thường/lỗi.
+   Không gradient, không đổ bóng, không bo góc. */
+:root {
+  --paper: #efebe2;
+  --paper-2: #e7e2d5;
+  --paper-3: #ddd6c5;
+  --ink: #16150f;
+  --ink-2: #4a463b;
+  --ink-3: #6b6657;
+  --rule: #cbc4b2;
+  --signal: #c2381a;
+  --on-signal: #fbf7ee;
+
+  /* mức độ log */
+  --lvl-info: #bdb6a3;
+  --lvl-warn: #c9921e;
+  --lvl-error: #c2381a;
+  --lvl-fatal: #16150f;
+
+  /* thang đậm nhạt cho ô nhiệt (5 bậc rời rạc, không chuyển màu liên tục) */
+  --step-0: transparent;
+  --step-1: #e2dccb;
+  --step-2: #cfc6af;
+  --step-3: #b3a98e;
+  --step-4: #8d836a;
+  --step-5: #16150f;
+  --step-5-text: #efebe2;
+
+  --serif: "Newsreader Variable", "Newsreader", "Iowan Old Style", Georgia, serif;
+  --sans: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  --gutter: clamp(20px, 4vw, 56px);
+  --sidebar: 268px;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --paper: #121110;
+  --paper-2: #1b1a17;
+  --paper-3: #26241f;
+  --ink: #ece6d8;
+  --ink-2: #b5ae9c;
+  --ink-3: #8f8978;
+  --rule: #34312a;
+  --signal: #f0613b;
+  --on-signal: #170a05;
+  --lvl-info: #4a463b;
+  --lvl-warn: #d9a13a;
+  --lvl-error: #f0613b;
+  --lvl-fatal: #ece6d8;
+  --step-1: #23211c;
+  --step-2: #35322a;
+  --step-3: #55503f;
+  --step-4: #8a8268;
+  --step-5: #ece6d8;
+  --step-5-text: #121110;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #121110;
+    --paper-2: #1b1a17;
+    --paper-3: #26241f;
+    --ink: #ece6d8;
+    --ink-2: #b5ae9c;
+    --ink-3: #8f8978;
+    --rule: #34312a;
+    --signal: #f0613b;
+    --on-signal: #170a05;
+    --lvl-info: #4a463b;
+    --lvl-warn: #d9a13a;
+    --lvl-error: #f0613b;
+    --lvl-fatal: #ece6d8;
+    --step-1: #23211c;
+    --step-2: #35322a;
+    --step-3: #55503f;
+    --step-4: #8a8268;
+    --step-5: #ece6d8;
+    --step-5-text: #121110;
+    color-scheme: dark;
+  }
+}

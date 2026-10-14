@@ -1,0 +1,51 @@
+# Cấu hình trung tâm của pipeline. Giá trị có thể bị ghi đè bằng biến môi trường (xem .env.example).
+
+dataset:
+  name: loghub-hdfs-v1
+  local_raw_dir: data/raw/HDFS_v1          # HDFS.log, preprocessed/anomaly_label.csv
+  sample_lines: 200000                      # dùng khi chạy thử nhanh (null = toàn bộ ~11M dòng)
+
+hdfs:
+  namenode: hdfs://namenode:9000
+  raw_path: /logad/raw/HDFS.log
+  labels_path: /logad/raw/anomaly_label.csv
+  parsed_path: /logad/parsed                # parquet: 1 dòng log đã parse
+  features_path: /logad/features            # parquet: 1 dòng / block (vector đặc trưng)
+  results_path: /logad/results              # parquet: điểm bất thường + dự đoán
+
+spark:
+  app_name: logad
+  master: spark://spark-master:7077
+  shuffle_partitions: 8
+
+parsing:
+  # Regex dòng log HDFS: "081109 203615 148 INFO dfs.DataNode$PacketResponder: <nội dung>"
+  line_regex: '^(\d{6})\s+(\d{6})\s+(\d+)\s+(INFO|WARN|ERROR|FATAL|DEBUG)\s+([\w.$]+):\s*(.*)$'
+  use_drain3: false                         # true = dùng Drain3 thay vì mask bằng regex
+
+features:
+  session_key: block_id
+  time_window_seconds: 60                   # dùng cho thống kê lỗi theo cửa sổ thời gian (dashboard)
+  normalize: tfidf                          # none | l2 | tfidf
+
+models:
+  kmeans:
+    k_candidates: [4, 6, 8, 12, 16]
+    seed: 42
+    threshold_percentile: 99                # điểm = khoảng cách tới tâm cụm gần nhất
+  isolation_forest:                         # baseline sklearn (chạy trên pandas)
+    n_estimators: 200
+    contamination: 0.03
+    seed: 42
+  zscore:
+    threshold: 3.0                          # phát hiện đột biến số lỗi theo cửa sổ thời gian
+
+evaluation:
+  metrics: [precision, recall, f1, pr_auc]
+  label_positive: Anomaly
+
+elasticsearch:
+  host: http://elasticsearch:9200
+  index_logs: logad-logs
+  index_anomalies: logad-anomalies
+  index_error_stats: logad-error-stats

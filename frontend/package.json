@@ -1,0 +1,33 @@
+{
+  "name": "logad-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "gen:api": "openapi-typescript ../api/openapi.yaml -o src/api/schema.d.ts",
+    "predev": "npm run gen:api",
+    "dev": "vite",
+    "prebuild": "npm run gen:api",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b --noEmit"
+  },
+  "dependencies": {
+    "@fontsource-variable/newsreader": "^5.3.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/ibm-plex-sans": "^5.3.0",
+    "@tanstack/react-query": "^5.104.2",
+    "openapi-fetch": "^0.17.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-router-dom": "^7.18.4"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "openapi-typescript": "^7.13.0",
+    "typescript": "~5.9",
+    "vite": "^8.3.4"
+  }
+}
