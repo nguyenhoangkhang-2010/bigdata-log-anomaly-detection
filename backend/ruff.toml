@@ -1,0 +1,9 @@
+line-length = 120
+target-version = "py311"
+
+[lint]
+select = ["E", "F", "B", "UP", "SIM"]   # bỏ "I": sắp xếp import kiểu 1-tên-1-dòng làm diff rối
+ignore = ["E501"]   # độ dài dòng do formatter/đọc code quyết định, không báo lỗi
+
+[lint.per-file-ignores]
+"tests/*" = ["B011"]
