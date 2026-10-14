@@ -2,7 +2,7 @@
 #
 #   conda env create -f environment.yml          (chạy tại thư mục gốc dự án)
 #   conda activate logad
-#   pip install -r requirements.txt -r backend/requirements.txt
+#   pip install -r requirements.txt -r backend/requirements-dev.txt
 #
 # Cố ý KHÔNG đặt phần `pip:` ở đây: khi conda tự gọi pip lúc tạo env, Python chưa được activate nên
 # trên Windows pip có thể lỗi "gzip module is not available". Cài pip sau khi activate thì ổn.

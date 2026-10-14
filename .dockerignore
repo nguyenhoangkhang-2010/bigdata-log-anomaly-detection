@@ -1,0 +1,33 @@
+# Context build là thư mục gốc dự án: loại mọi thứ image không cần để build nhanh và không lộ file riêng tư.
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+
+# dữ liệu lớn và model đã huấn luyện
+data/
+models/
+
+# môi trường, bộ nhớ đệm
+**/node_modules
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.ruff_cache
+**/dist
+
+# phần không thuộc image web/api
+docs/
+notebooks/
+jobs/
+src/
+scripts/
+dashboard/
+configs/
+tests/
+backend/tests
+backend/.venv
+*.md
+!api/**
