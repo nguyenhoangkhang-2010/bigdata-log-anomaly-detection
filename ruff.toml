@@ -1,6 +1,6 @@
 # Lint cho pipeline (src/, jobs/, scripts/, tests/). Backend có ruff.toml riêng trong backend/.
 line-length = 120
-target-version = "py311"
+target-version = "py38"   # image Spark trong cụm Docker dùng Python 3.8 nên src/ và jobs/ phải chạy được trên đó
 extend-exclude = ["backend", "frontend", "data", "notebooks"]
 
 [lint]

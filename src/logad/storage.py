@@ -43,6 +43,33 @@ def arrays_to_vectors(df: DataFrame, *cols: str) -> DataFrame:
     return df
 
 
+def _write_parts_with_pyarrow(df: DataFrame, out: Path) -> None:
+    """Mỗi partition tự ghi một file parquet bằng pyarrow ngay trong tiến trình worker (không kéo về driver).
+
+    Dùng mapInArrow: schema Arrow lấy từ Spark nên mọi batch cùng kiểu, timestamp đã là micro-giây (Spark đọc lại được).
+    """
+    import uuid
+
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+    from pyspark.sql.types import LongType, StructField, StructType
+
+    target = str(out)
+
+    def write_partition(batches):
+        writer, rows = None, 0
+        for batch in batches:
+            if writer is None:
+                writer = pq.ParquetWriter(os.path.join(target, f"part-{uuid.uuid4().hex}.parquet"), batch.schema)
+            writer.write_batch(batch)
+            rows += batch.num_rows
+        if writer is not None:
+            writer.close()
+        yield pa.RecordBatch.from_pydict({"rows": [rows]}, schema=pa.schema([("rows", pa.int64())]))
+
+    df.mapInArrow(write_partition, StructType([StructField("rows", LongType())])).collect()
+
+
 def save_parquet(df: DataFrame, path: str) -> None:
     """Ghi DataFrame ra `path` (thư mục parquet). Ghi đè nếu đã có."""
     df = vectors_to_arrays(df)
@@ -51,10 +78,7 @@ def save_parquet(df: DataFrame, path: str) -> None:
         if out.exists():
             shutil.rmtree(out)
         out.mkdir(parents=True)
-        # Spark không đọc được timestamp nano-giây của pandas -> ép về micro-giây
-        df.toPandas().to_parquet(
-            out / "part-00000.parquet", index=False, coerce_timestamps="us", allow_truncated_timestamps=True,
-        )
+        _write_parts_with_pyarrow(df, out)
     else:
         df.write.mode("overwrite").parquet(path)
 

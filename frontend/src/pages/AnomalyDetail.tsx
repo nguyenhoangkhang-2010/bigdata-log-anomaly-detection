@@ -72,7 +72,7 @@ export default function AnomalyDetail() {
                 <div><dt>Bắt đầu (UTC)</dt><dd className="m">{fmtStamp(it.first_ts)}</dd></div>
               </dl>
 
-              <Section title="Điểm theo từng mô hình" note="Cùng một block, ba cách nhìn khác nhau. Nhãn thật chỉ để đối chiếu, không dùng khi huấn luyện.">
+              <Section title="Điểm theo từng mô hình" note="Cùng một block, ba mô hình chấm điểm độc lập. Nhãn thật (Normal/Anomaly của LogHub) chỉ để đối chiếu: các mô hình không học từ nhãn, nhãn chỉ dùng để chọn k của KMeans.">
                 <div className="tbl-wrap">
                   <table className="tbl">
                     <thead><tr><th>Mô hình</th><th>Điểm · ngưỡng</th><th className="r">Điểm</th><th>Kết luận</th></tr></thead>

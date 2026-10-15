@@ -39,11 +39,17 @@ class Paths:
     features: str
     window_stats: str
     results_root: str
+    serving: str  # thư mục LOCAL chứa tệp phục vụ cho backend (job 07 ghi, job 06 đọc); luôn là đường dẫn cục bộ
     models_dir: str
     metrics: str
 
     def results(self, model: str) -> str:
         return f"{self.results_root}/{model}"
+
+
+def _local_dir(p: str) -> str:
+    pp = Path(p)
+    return str(pp if pp.is_absolute() else PROJECT_ROOT / pp)
 
 
 def _first_existing(*candidates: str | None) -> str | None:
@@ -70,6 +76,7 @@ def resolve_paths(cfg: dict[str, Any]) -> Paths:
             features=hdfs_uri(cfg, "features_path"),
             window_stats=hdfs_uri(cfg, "window_stats_path"),
             results_root=hdfs_uri(cfg, "results_path"),
+            serving=_local_dir(os.environ.get("LOGAD_SERVING_DIR") or cfg.get("storage", {}).get("serving_dir", "data/interim/logad/results/serving")),
             models_dir=str(Path(cfg.get("storage", {}).get("models_dir", "models"))),
             metrics=hdfs_uri(cfg, "results_path") + "/metrics.json",
         )
@@ -102,6 +109,7 @@ def resolve_paths(cfg: dict[str, Any]) -> Paths:
         features=str(root / "features"),
         window_stats=str(root / "window_stats"),
         results_root=str(root / "results"),
+        serving=_local_dir(os.environ["LOGAD_SERVING_DIR"]) if os.environ.get("LOGAD_SERVING_DIR") else str(root / "results" / "serving"),
         models_dir=str(root / "models"),
         metrics=str(root / "results" / "metrics.json"),
     )

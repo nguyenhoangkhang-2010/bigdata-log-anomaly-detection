@@ -86,5 +86,9 @@ def parse_dataframe(raw_df, line_regex: str = LINE_REGEX):
     masked = reduce(lambda col, rule: F.regexp_replace(col, rule[1], rule[2]), MASK_RULES, F.col("content"))
     p = p.withColumn("template", F.trim(masked))
     p = p.withColumn("event_id", F.substring(F.md5("template"), 1, 8))
-    p = p.withColumn("block_id", F.explode_outer(F.expr(r"regexp_extract_all(content, 'blk_-?\\d+', 0)")))
+    # block_pos = thứ tự block trong dòng (0 = hàng đầu của dòng). Đếm "số dòng" thì chỉ lấy block_pos 0 / null, nếu không
+    # dòng chứa nhiều block bị đếm nhiều lần.
+    p = p.select(
+        "*", F.posexplode_outer(F.expr(r"regexp_extract_all(content, 'blk_-?\\d+', 0)")).alias("block_pos", "block_id"),
+    )
     return p.drop("date", "time")

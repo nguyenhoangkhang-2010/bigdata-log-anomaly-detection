@@ -28,6 +28,7 @@ JOBS = {
     "04": "04_detect_anomalies.py",
     "05": "05_evaluate.py",
     "06": "06_index_elasticsearch.py",
+    "07": "07_export_serving.py",
 }
 
 
@@ -43,7 +44,7 @@ def main() -> int:
     ap.add_argument("--synthetic", action="store_true", help="sinh dữ liệu mô phỏng có nhãn rồi chạy")
     ap.add_argument("--raw", help="file log thô (mặc định theo cấu hình)")
     ap.add_argument("--labels", help="anomaly_label.csv")
-    ap.add_argument("--only", default="02,03,04,05", help="các job cần chạy, vd. 02,03")
+    ap.add_argument("--only", default="02,03,04,05,07", help="các job cần chạy, vd. 02,03 (06 = Elasticsearch, 07 = tệp cho backend)")
     ap.add_argument("--blocks", type=int, default=4000, help="số block khi --synthetic")
     args = ap.parse_args()
 

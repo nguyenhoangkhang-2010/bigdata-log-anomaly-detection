@@ -21,7 +21,8 @@ COPY api/openapi.yaml ./api/openapi.yaml
 RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin appuser
 USER appuser
 
-ENV LOGAD_DATA_SOURCE=demo
+ENV LOGAD_DATA_SOURCE=auto
+ENV LOGAD_SERVING_DIR=/data/serving
 
 EXPOSE 8000
 

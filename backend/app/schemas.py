@@ -10,7 +10,7 @@ Level = Literal["INFO", "WARN", "ERROR", "FATAL"]
 Severity = Literal["critical", "warning", "info"]
 ModelName = Literal["kmeans", "iforest", "zscore"]
 Bucket = Literal["1m", "5m", "15m", "1h"]
-DataSource = Literal["demo", "elasticsearch"]
+DataSource = Literal["demo", "elasticsearch", "files"]
 
 
 class Problem(BaseModel):

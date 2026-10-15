@@ -76,7 +76,7 @@ def build_event_count_matrix(
         else:
             idf = [1.0] * len(vocab)
         weighted = [f"w_{c}" for c in cols]
-        for c, w, k in zip(cols, weighted, idf, strict=True):
+        for c, w, k in zip(cols, weighted, idf):
             df = df.withColumn(w, F.log1p(F.col(c)) * F.lit(float(k)))
         df = VectorAssembler(inputCols=weighted, outputCol="_weighted").transform(df)
         df = Normalizer(inputCol="_weighted", outputCol="features", p=2.0).transform(df)
@@ -93,6 +93,8 @@ def build_window_error_stats(parsed_df: DataFrame, window_seconds: int = 60) -> 
 
     Dùng cho dashboard (lỗi theo thời gian / theo component) và phát hiện đột biến lỗi (z-score).
     """
+    if "block_pos" in parsed_df.columns:  # mỗi dòng log chỉ đếm một lần dù chứa nhiều block
+        parsed_df = parsed_df.where(F.col("block_pos").isNull() | (F.col("block_pos") == 0))
     return (
         parsed_df.groupBy(F.window("ts", f"{int(window_seconds)} seconds").alias("w"), "component", "level")
         .count()

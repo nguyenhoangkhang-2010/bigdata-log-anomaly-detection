@@ -31,6 +31,9 @@ def get_spark(cfg: dict[str, Any], app_suffix: str = "", local: bool = False) ->
             .config("spark.ui.enabled", "false")
             .config("spark.local.dir", str(tmp))
             .config("spark.sql.shuffle.partitions", sc.get("local_shuffle_partitions", 4))
+            # mặc định driver chỉ 1 GB và giới hạn kết quả 1 GB: bản đầy đủ (11M dòng) ghi parquet qua pandas sẽ tràn
+            .config("spark.driver.memory", sc.get("local_driver_memory", "1g"))
+            .config("spark.driver.maxResultSize", sc.get("local_max_result_size", "1g"))
         )
     # khi submit qua spark-submit thì master do tham số --master quyết định
     return builder.getOrCreate()

@@ -4,12 +4,13 @@ storage:
   mode: hdfs                                # hdfs (cụm Docker) | local (đọc/ghi data/, không cần HDFS). LOGAD_STORAGE ghi đè
   local_root: data/interim/logad            # nơi ghi kết quả khi mode = local
   models_dir: models                        # model KMeans đã huấn luyện (mode = hdfs)
+  serving_dir: data/interim/logad/results/serving   # tệp cho backend/Elasticsearch (mode = hdfs; đổi bằng LOGAD_SERVING_DIR)
 
 dataset:
   name: loghub-hdfs-v1
-  local_raw: data/raw/HDFS_v1/HDFS.log                      # bản đầy đủ
+  local_raw: data/raw/HDFS.log                              # bản đầy đủ (download_loghub.py giải nén thẳng vào data/raw/)
   local_raw_fallback: data/raw/HDFS_2k.log                  # dùng khi chưa có bản đầy đủ (2.000 dòng, không nhãn)
-  local_labels: data/raw/HDFS_v1/preprocessed/anomaly_label.csv
+  local_labels: data/raw/preprocessed/anomaly_label.csv
   sample_lines: null                        # số dòng đọc khi chạy thử nhanh (null = toàn bộ ~11M dòng)
 
 hdfs:
@@ -25,6 +26,10 @@ spark:
   app_name: logad
   master: spark://spark-master:7077
   shuffle_partitions: 8
+  local_cores: 8                            # chỉ dùng khi chạy local (scripts/run_local_pipeline.py)
+  local_shuffle_partitions: 16
+  local_driver_memory: 24g                  # máy 40 GB RAM; giảm nếu máy yếu hơn
+  local_max_result_size: 0                  # 0 = không giới hạn (cần khi toPandas() bản đầy đủ)
 
 parsing:
   # Regex dòng log HDFS: "081109 203615 148 INFO dfs.DataNode$PacketResponder: <nội dung>"
@@ -58,9 +63,4 @@ evaluation:
 
 elasticsearch:
   host: http://elasticsearch:9200
-  index_logs: logad-logs                    # chỉ dòng WARN/ERROR/FATAL (không đẩy ~11M dòng INFO)
-  index_anomalies: logad-anomalies          # mỗi block một tài liệu: điểm + cờ của 3 mô hình + nhãn thật
-  index_error_stats: logad-error-stats
-  index_spikes: logad-spikes
-  index_models: logad-models                # chỉ số đánh giá từng mô hình
-  index_all_blocks: true                    # false = chỉ đẩy block bị ít nhất một mô hình gắn cờ
+  index_prefix: logad                       # index: logad-anomalies, logad-error-stats, logad-spikes, logad-logs, logad-events, logad-meta

@@ -340,7 +340,7 @@ components:
       default: 1h
     DataSource:
       type: string
-      enum: [demo, elasticsearch]
+      enum: [demo, elasticsearch, files]
 
     Problem:
       type: object

@@ -29,6 +29,12 @@ function ThemeButton() {
   return <button className="theme-btn" onClick={flip} aria-label="Đổi giao diện sáng/tối">{theme === "dark" ? "Sáng" : "Tối"}</button>;
 }
 
+const SOURCE_LABEL = {
+  demo: "demo · bộ nhớ",
+  files: "kết quả pipeline (tệp)",
+  elasticsearch: "Elasticsearch",
+} as const;
+
 export function Shell() {
   const meta = useMeta();
   const health = useHealth();
@@ -58,7 +64,7 @@ export function Shell() {
           <div className="bar__r">
             <span className="src" title={apiText}>
               <span className="dot" data-ok={apiState} />
-              <span className="src__t">{m ? (m.data_source === "demo" ? "demo" : "elasticsearch") : "…"}</span>
+              <span className="src__t">{m ? m.data_source : "…"}</span>
             </span>
             <ThemeButton />
           </div>
@@ -71,7 +77,7 @@ export function Shell() {
         <div className="wrap">
           <dl className="foot__info">
             <div><dt>Đề tài</dt><dd>13 · Nhập môn Big Data</dd></div>
-            <div><dt>Nguồn dữ liệu</dt><dd>{m ? (m.data_source === "demo" ? "demo · bộ nhớ" : "Elasticsearch") : "…"}</dd></div>
+            <div><dt>Nguồn dữ liệu</dt><dd>{m ? SOURCE_LABEL[m.data_source] : "…"}</dd></div>
             <div><dt>Khoảng dữ liệu</dt><dd>{range}</dd></div>
             <div><dt>Lần chạy · phiên bản</dt><dd>{m ? `${m.pipeline_run.id} · ${m.version}` : "…"}</dd></div>
             <div><dt>Trạng thái API</dt><dd><span className="dot" data-ok={apiState} /> {apiText}</dd></div>

@@ -9,7 +9,7 @@ của máy và lệch giờ.
 from __future__ import annotations
 
 import math
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from typing import Any
 
 from pyspark.sql import DataFrame
@@ -29,19 +29,33 @@ MAPPINGS: dict[str, dict[str, Any]] = {
         "kmeans_score": _NUM, "kmeans_flag": {"type": "boolean"},
         "iforest_score": _NUM, "iforest_flag": {"type": "boolean"},
         "zscore_score": _NUM, "zscore_flag": {"type": "boolean"},
-        "flagged_by": _KW,
+        "flagged_by": _KW, "top_events": _KW,
+        "counts": {"type": "object", "enabled": False},  # {event_id: số lần}: chỉ lưu, không đánh chỉ mục
     }},
     "error_stats": {"properties": {"ts": _DATE, "component": _KW, "level": _KW, "n": {"type": "integer"}}},
     "spikes": {"properties": {"ts": _DATE, "component": _KW, "n": {"type": "integer"}, "mean": _NUM, "z": _NUM}},
     "logs": {"properties": {
         "ts": _DATE, "level": _KW, "component": _KW, "block_id": _KW, "event_id": _KW, "template": _KW,
-        "content": {"type": "text"}, "pid": {"type": "integer"},
+        "content": {"type": "text"}, "pid": {"type": "integer"}, "block_pos": {"type": "integer"},
     }},
+    "events": {"properties": {
+        "event_id": _KW, "template": {"type": "keyword", "ignore_above": 2048}, "level": _KW, "count": {"type": "long"},
+        "block_count": {"type": "integer"}, "anomaly_ratio": _NUM, "lift": _NUM,
+    }},
+    # 1 tài liệu duy nhất (_id = "meta"): tổng quan lần chạy, ngưỡng, chỉ số mô hình, từ vựng event. Chỉ lưu, không đánh chỉ mục.
+    "meta": {"dynamic": False, "properties": {"run_id": _KW}},
     "models": {"properties": {
         "name": _KW, "split": _KW, "precision": _NUM, "recall": _NUM, "f1": _NUM, "pr_auc": _NUM, "train_seconds": _NUM,
         "tp": {"type": "integer"}, "fp": {"type": "integer"}, "fn": {"type": "integer"}, "tn": {"type": "integer"},
         "n_blocks": {"type": "integer"}, "n_labeled": {"type": "integer"}, "n_positive": {"type": "integer"},
     }},
+}
+
+
+# Cài đặt riêng theo loại index: phân trang sâu (danh sách block/log hàng trăm nghìn dòng) cần cửa sổ kết quả lớn hơn mặc định 10.000
+INDEX_SETTINGS: dict[str, dict[str, Any]] = {
+    "anomalies": {"max_result_window": 1_000_000},
+    "logs": {"max_result_window": 1_000_000},
 }
 
 
@@ -76,7 +90,8 @@ def ensure_index(es: Any, index: str, kind: str, recreate: bool = True) -> None:
     if recreate and es.indices.exists(index=index):
         es.indices.delete(index=index)
     if not es.indices.exists(index=index):
-        es.indices.create(index=index, mappings=MAPPINGS[kind], settings={"number_of_shards": 1, "number_of_replicas": 0})
+        settings = {"number_of_shards": 1, "number_of_replicas": 0, **INDEX_SETTINGS.get(kind, {})}
+        es.indices.create(index=index, mappings=MAPPINGS[kind], settings=settings)
 
 
 def write_df(
@@ -89,10 +104,35 @@ def write_df(
     """
     if kind not in MAPPINGS:
         raise ValueError(f"kind phải là một trong {sorted(MAPPINGS)}, nhận {kind!r}")
+    return _bulk_into(iter_actions(df, index, id_col), index, es_host, kind, recreate, batch, client)
+
+
+def write_records(
+    records: Iterable[dict[str, Any]], index: str, es_host: str, kind: str, id_field: str | None = None,
+    recreate: bool = True, batch: int = 2000, client: Any = None,
+) -> dict[str, int]:
+    """Như write_df nhưng nhận một dãy dict (đã ở dạng JSON được), dùng khi dữ liệu không đi qua Spark (đọc từ tệp serving)."""
+    if kind not in MAPPINGS:
+        raise ValueError(f"kind phải là một trong {sorted(MAPPINGS)}, nhận {kind!r}")
+
+    def actions() -> Iterator[dict[str, Any]]:
+        for rec in records:
+            doc = {k: _clean(v) for k, v in rec.items()}
+            action: dict[str, Any] = {"_index": index, "_source": doc}
+            if id_field and doc.get(id_field) is not None:
+                action["_id"] = str(doc[id_field])
+            yield action
+
+    return _bulk_into(actions(), index, es_host, kind, recreate, batch, client)
+
+
+def _bulk_into(
+    actions: Iterable[dict[str, Any]], index: str, es_host: str, kind: str, recreate: bool, batch: int, client: Any,
+) -> dict[str, int]:
     from elasticsearch import Elasticsearch, helpers
 
     es = client or Elasticsearch(es_host, request_timeout=120)
     ensure_index(es, index, kind, recreate=recreate)
-    ok, errors = helpers.bulk(es, iter_actions(df, index, id_col), chunk_size=batch, raise_on_error=False, stats_only=False)
+    ok, errors = helpers.bulk(es, actions, chunk_size=batch, raise_on_error=False, stats_only=False)
     es.indices.refresh(index=index)
     return {"indexed": int(ok), "errors": len(errors) if isinstance(errors, list) else int(errors)}

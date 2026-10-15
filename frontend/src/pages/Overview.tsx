@@ -15,6 +15,15 @@ const BUCKETS: { value: S["Bucket"]; label: string }[] = [
   { value: "1h", label: "1 giờ" },
 ];
 
+/** Số to của thẻ KPI: luôn đủ chữ số (có dấu phân cách hàng nghìn), cỡ chữ tự co theo độ dài để vừa bề ngang thẻ. */
+function Big({ n, chars }: { n: number; chars: number }) {
+  return <span className="fld__v" style={{ fontSize: `min(clamp(56px, 8vw, 128px), calc(100cqw / ${(chars * 0.68).toFixed(2)}))` }}>{fmtInt(n)}</span>;
+}
+
+/** Cả 4 thẻ dùng chung một cỡ chữ, theo số dài nhất, để hàng KPI đều nhau. */
+const chars = (d: S["Summary"]) =>
+  Math.max(...[d.anomalous_blocks, d.error_lines, d.active_alerts, d.total_lines].map((n) => fmtInt(n).length));
+
 function ComponentBars({ rows }: { rows: S["ComponentStat"][] }) {
   const max = Math.max(...rows.map((r) => r.warn + r.error + r.fatal), 1);
   return (
@@ -61,22 +70,22 @@ export default function Overview() {
           <div className="band">
             <div className="fld fld--ink">
               <span className="fld__k">Block bị gắn cờ</span>
-              <span className="fld__v">{fmtInt(d.anomalous_blocks)}</span>
+              <Big n={d.anomalous_blocks} chars={chars(d)} />
               <span className="fld__s">{fmtPct(d.anomaly_rate)} trên {fmtInt(d.total_blocks)} block</span>
             </div>
             <div className="fld fld--blue">
               <span className="fld__k">Dòng ERROR + FATAL</span>
-              <span className="fld__v">{fmtInt(d.error_lines)}</span>
+              <Big n={d.error_lines} chars={chars(d)} />
               <span className="fld__s">{fmtPct(d.error_rate, 2)} tổng số dòng · {fmtInt(d.warn_lines)} WARN</span>
             </div>
             <div className="fld fld--yellow">
               <span className="fld__k">Cảnh báo</span>
-              <span className="fld__v">{fmtInt(d.active_alerts)}</span>
+              <Big n={d.active_alerts} chars={chars(d)} />
               <span className="fld__s">đột biến lỗi và block điểm cao</span>
             </div>
             <div className="fld fld--soft">
               <span className="fld__k">Dòng nhật ký</span>
-              <span className="fld__v fld__v--long">{fmtInt(d.total_lines)}</span>
+              <Big n={d.total_lines} chars={chars(d)} />
               <span className="fld__s">{fmtInt(d.total_blocks)} block</span>
             </div>
           </div>
