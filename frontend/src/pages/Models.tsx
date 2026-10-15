@@ -44,7 +44,7 @@ export default function Models() {
     <>
       <PageTitle
         title="Mô hình"
-        lede={<>Nhãn Normal/Anomaly của LogHub chỉ dùng để chấm điểm sau cùng, không đưa vào huấn luyện. Dữ liệu bất thường chiếm vài phần trăm nên Precision, Recall và PR-AUC đáng tin hơn Accuracy.
+        lede={<>Các mô hình học không giám sát; nhãn Normal/Anomaly của LogHub chỉ dùng để chọn k của KMeans (nửa val) và chấm điểm trên nửa test còn lại, nên số liệu dưới đây là của nửa test. Dữ liệu bất thường chiếm vài phần trăm nên Precision, Recall và PR-AUC đáng tin hơn Accuracy.
           {meta.data?.is_synthetic && <> <span className="mark">Số liệu dưới đây tính trên dữ liệu mô phỏng</span>: chỉ minh họa cách đọc, không phản ánh chất lượng thật.</>}</>}
       />
 

@@ -246,7 +246,7 @@ export interface components {
          */
         Bucket: "1m" | "5m" | "15m" | "1h";
         /** @enum {string} */
-        DataSource: "demo" | "elasticsearch";
+        DataSource: "demo" | "elasticsearch" | "files";
         Problem: {
             status: number;
             title: string;

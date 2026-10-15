@@ -18,9 +18,17 @@ services:
     container_name: logad-api
     restart: unless-stopped
     environment:
-      LOGAD_DATA_SOURCE: ${LOGAD_DATA_SOURCE:-demo}        # demo | elasticsearch (chưa cài đặt)
-      LOGAD_ELASTICSEARCH_URL: http://elasticsearch:9200
+      LOGAD_DATA_SOURCE: ${LOGAD_DATA_SOURCE:-auto}        # auto (có kết quả thật thì dùng, không thì demo) | demo | files | elasticsearch (chưa cài đặt)
+      LOGAD_SERVING_DIR: /data/serving
+      LOGAD_ELASTICSEARCH_URL: http://elasticsearch:9200   # auto: nếu Elasticsearch (profile search) đang chạy và đã nạp dữ liệu thì đọc từ đó
       LOGAD_CORS_ORIGINS: http://localhost:${WEB_PORT:-3000}
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+        required: false                                    # không bật profile search thì bỏ qua
+    volumes:
+      # kết quả pipeline (job 07) gắn vào chỉ-đọc; chưa chạy pipeline thì thư mục trống và API tự dùng dữ liệu mô phỏng
+      - ./data/interim/logad/results/serving:/data/serving:ro
     ports:
       - "${API_PORT:-8000}:8000"                           # Swagger: http://localhost:8000/docs
 
@@ -73,7 +81,10 @@ services:
   # ---------- Spark (standalone) ----------
   spark-master:
     profiles: ["bigdata"]
-    image: apache/spark:3.5.3-python3
+    build:
+      context: .
+      dockerfile: docker/spark/Dockerfile
+    image: logad-spark:dev
     container_name: logad-spark-master
     restart: unless-stopped
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
@@ -91,15 +102,18 @@ services:
 
   spark-worker:
     profiles: ["bigdata"]
-    image: apache/spark:3.5.3-python3
+    build:
+      context: .
+      dockerfile: docker/spark/Dockerfile
+    image: logad-spark:dev
     container_name: logad-spark-worker
     restart: unless-stopped
     depends_on:
       - spark-master
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
     environment:
-      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-2}
-      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-3g}
+      SPARK_WORKER_CORES: ${SPARK_WORKER_CORES:-8}
+      SPARK_WORKER_MEMORY: ${SPARK_WORKER_MEMORY:-8g}
       PYTHONPATH: /opt/project/src
     volumes:
       - ./src:/opt/project/src:ro
@@ -116,7 +130,12 @@ services:
     environment:
       discovery.type: single-node
       xpack.security.enabled: "false"
-      ES_JAVA_OPTS: "-Xms1g -Xmx1g"
+      ES_JAVA_OPTS: "-Xms2g -Xmx2g"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -Eq '\"status\":\"(green|yellow)\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
     ports:
       - "${ES_PORT:-9200}:9200"
     volumes:

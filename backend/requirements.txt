@@ -4,3 +4,6 @@ uvicorn[standard]>=0.30
 pydantic>=2.8
 pydantic-settings>=2.4
 numpy>=1.26
+pandas>=2.2
+pyarrow>=15
+elasticsearch>=8.15,<9

@@ -6,16 +6,32 @@ Dòng mẫu:
    content="PacketResponder 1 for block blk_... terminating"
    template="PacketResponder <NUM> for block <BLK> terminating"
 
-Có 2 phiên bản: thuần Python (dễ unit test) và Spark DataFrame (chạy phân tán).
+Có 2 phiên bản: thuần Python (dễ unit test) và Spark DataFrame (chạy phân tán). Cả hai dùng CHUNG danh sách
+`MASK_RULES` nên không thể lệch nhau (có test đối chiếu ở tests/test_parsing_spark.py).
 """
 from __future__ import annotations
 
 import re
+from functools import reduce
 
-LINE_RE = re.compile(r"^(\d{6})\s+(\d{6})\s+(\d+)\s+(INFO|WARN|ERROR|FATAL|DEBUG)\s+([\w.$]+):\s*(.*)$")
+LINE_REGEX = r"^(\d{6})\s+(\d{6})\s+(\d+)\s+(INFO|WARN|ERROR|FATAL|DEBUG)\s+([\w.$]+):\s*(.*)$"
+LINE_RE = re.compile(LINE_REGEX)
 BLOCK_RE = re.compile(r"blk_-?\d+")
-IP_RE = re.compile(r"/?\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?")
-NUM_RE = re.compile(r"\b\d+\b")
+
+# (tên, regex, thay thế). THỨ TỰ QUAN TRỌNG. Giữ regex đơn giản để cú pháp Python và Java (Spark) cho cùng kết quả.
+MASK_RULES: list[tuple[str, str, str]] = [
+    ("block", r"blk_-?\d+", "<BLK>"),
+    # IP (kèm "/" đứng trước và ":port" theo sau nếu có)
+    ("ip", r"/?\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?", "<IP>"),
+    # đường dẫn file: /user/root/rand/_temporary/_task_2008..._m_000590_0/part-00590. , /mnt/hadoop/dfs/data/current/subdir5/<BLK>
+    # (làm SAU khi block/IP đã được che; nếu không, mỗi subdirN và mỗi mã task sẽ sinh ra một template riêng)
+    ("path", r"/[\w.\-]+(?:/[\w.\-<>]+)*", "<PATH>"),
+    # lệnh xóa/sao chép có thể liệt kê hàng chục block -> gộp thành một <BLK>
+    ("block_list", r"<BLK>(?:\s+<BLK>)+", "<BLK>"),
+    ("number", r"\b\d+\b", "<NUM>"),
+    ("spaces", r"\s{2,}", " "),
+]
+_COMPILED = [(re.compile(rx), repl) for _, rx, repl in MASK_RULES]
 
 
 def parse_line(line: str) -> dict | None:
@@ -40,21 +56,20 @@ def extract_block_ids(content: str) -> list[str]:
 
 
 def to_template(content: str) -> str:
-    """Mask block id, IP, số -> template. Thứ tự quan trọng: block -> IP -> số."""
-    t = BLOCK_RE.sub("<BLK>", content)
-    t = IP_RE.sub("<IP>", t)
-    t = NUM_RE.sub("<NUM>", t)
-    return t
+    """Che các phần biến thiên (block, IP, đường dẫn, số) -> template."""
+    for rx, repl in _COMPILED:
+        content = rx.sub(repl, content)
+    return content.strip()
 
 
 # ---------------------------------------------------------------------------
-# Phiên bản Spark (chưa chạy thử trên cụm - hoàn thiện ở Tuần 6-7)
+# Phiên bản Spark
 # ---------------------------------------------------------------------------
-def parse_dataframe(raw_df, line_regex: str):
+def parse_dataframe(raw_df, line_regex: str = LINE_REGEX):
     """raw_df: DataFrame 1 cột `value` (spark.read.text). Trả về DataFrame đã parse.
 
     Cột kết quả: ts (timestamp), pid, level, component, content, template, event_id, block_id.
-    Mỗi block trong 1 dòng được explode thành 1 hàng riêng.
+    Mỗi block trong 1 dòng được explode thành 1 hàng riêng (dòng không có block giữ 1 hàng, block_id = null).
     """
     from pyspark.sql import functions as F
 
@@ -68,18 +83,12 @@ def parse_dataframe(raw_df, line_regex: str):
     ).where(F.col("level") != "")
 
     p = p.withColumn("ts", F.to_timestamp(F.concat_ws(" ", "date", "time"), "yyMMdd HHmmss"))
-    p = p.withColumn(
-        "template",
-        F.regexp_replace(
-            F.regexp_replace(
-                F.regexp_replace("content", r"blk_-?\d+", "<BLK>"),
-                r"/?\d{1,3}(\.\d{1,3}){3}(:\d+)?",
-                "<IP>",
-            ),
-            r"\b\d+\b",
-            "<NUM>",
-        ),
-    )
+    masked = reduce(lambda col, rule: F.regexp_replace(col, rule[1], rule[2]), MASK_RULES, F.col("content"))
+    p = p.withColumn("template", F.trim(masked))
     p = p.withColumn("event_id", F.substring(F.md5("template"), 1, 8))
-    p = p.withColumn("block_id", F.explode_outer(F.expr(r"regexp_extract_all(content, 'blk_-?\\d+', 0)")))
+    # block_pos = thứ tự block trong dòng (0 = hàng đầu của dòng). Đếm "số dòng" thì chỉ lấy block_pos 0 / null, nếu không
+    # dòng chứa nhiều block bị đếm nhiều lần.
+    p = p.select(
+        "*", F.posexplode_outer(F.expr(r"regexp_extract_all(content, 'blk_-?\\d+', 0)")).alias("block_pos", "block_id"),
+    )
     return p.drop("date", "time")

@@ -34,7 +34,7 @@ export default function Logs() {
     <>
       <PageTitle
         title="Nhật ký"
-        lede={<>Tìm trong toàn bộ nhật ký đã parse, mới nhất trước. Vạch trái của dòng: <span className="hl">xanh = WARN</span>, đen = ERROR, vàng = FATAL. Mốc thời gian nhập theo giờ UTC.</>}
+        lede={<>Tìm trong các dòng WARN/ERROR/FATAL và mọi dòng của block bị KMeans hoặc Isolation Forest gắn cờ (dòng INFO của block bình thường không được nạp), mới nhất trước. Vạch trái của dòng: <span className="hl">xanh = WARN</span>, đen = ERROR, vàng = FATAL. Mốc thời gian nhập theo giờ UTC.</>}
       />
       <Section title="Tra cứu">
         <div className="filters">

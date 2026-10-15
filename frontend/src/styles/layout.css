@@ -34,7 +34,7 @@ main { min-height: 60vh; }
 
 /* các mảng màu số liệu: liền nhau, tràn hết bề ngang */
 .band { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.fld { padding: 26px var(--gutter) 30px; display: grid; gap: 6px; align-content: space-between; min-height: 230px; }
+.fld { container-type: inline-size; padding: 26px var(--gutter) 30px; display: grid; gap: 6px; align-content: space-between; min-height: 230px; }
 .fld--ink { background: var(--ink); color: var(--ground); }
 .fld--blue { background: var(--blue); color: var(--on-blue); }
 .fld--yellow { background: var(--yellow); color: var(--on-yellow); }
@@ -76,4 +76,3 @@ main { min-height: 60vh; }
 main { overflow-x: clip; }
 .band { margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw); }
 
-.fld__v--long { font-size: clamp(40px, 5.4vw, 92px); }
