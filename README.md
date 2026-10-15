@@ -137,7 +137,7 @@ PR-AUC và Precision/Recall được dùng thay cho Accuracy vì chỉ ~3 % bloc
 
 | Đường dẫn | Nội dung | Kích thước |
 |---|---|---|
-| `/logad/raw` | `HDFS.log` (1,5 GB, 13 block 128 MB), `anomaly_label.csv` | 1,5 GB |
+| `/logad/raw` | `HDFS.log` (1,5 GB, 12 block 128 MB), `anomaly_label.csv` | 1,5 GB |
 | `/logad/parsed` | Parquet, mỗi dòng log đã parse (mỗi block một hàng) | ~330 MB |
 | `/logad/features` (+ `features_meta.json`) | Parquet, một hàng/block: vector đếm sự kiện | ~22 MB |
 | `/logad/window_stats` | Số dòng theo (cửa sổ 60 giây, component, mức) | ~60 KB |
@@ -199,7 +199,7 @@ Giải thích số liệu trên giao diện:
 
 ## 9. Dashboard Kibana
 
-Dashboard **"LogAD – Thống kê lỗi và cảnh báo bất thường"** gồm 10 panel (4 số lớn, WARN theo thời gian, component sinh nhiều WARN nhất, block bất thường theo thời gian,
+Dashboard **"LogAD – Thống kê lỗi và cảnh báo bất thường"** gồm 11 panel (4 số lớn, WARN theo thời gian, component sinh nhiều WARN nhất, block bất thường theo thời gian,
 phân bố điểm KMeans theo nhãn thật, mô hình nào gắn cờ, hai bảng top). Sinh bằng mã để tái tạo được:
 
 ```bat

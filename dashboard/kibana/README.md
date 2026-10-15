@@ -13,7 +13,7 @@ Rồi mở **http://localhost:5601/app/dashboards#/view/logad-dashboard**. (Cầ
 Nên đặt Kibana hiển thị giờ UTC cho khớp trang web (log HDFS không có múi giờ):
 `curl -X POST -H "kbn-xsrf: true" -H "Content-Type: application/json" http://localhost:5601/api/kibana/settings -d "{\"changes\":{\"dateFormat:tz\":\"UTC\"}}"`
 
-## 10 panel
+## 11 panel
 | Panel | Index | Cách tính |
 |---|---|---|
 | Dòng nhật ký | `logad-error-stats` | tổng `n` |

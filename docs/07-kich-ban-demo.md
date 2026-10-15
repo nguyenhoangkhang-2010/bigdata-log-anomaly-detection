@@ -23,7 +23,7 @@ Số liệu dưới đây là kết quả thật của lần chạy trên cụm 
 Mỗi block là một vòng đời ghi dữ liệu; hệ thống tìm những block có hành vi lạ."
 
 ## 1. Lưu trữ và xử lý (2 phút)
-- **Tab HDFS**: thư mục `/logad` có `raw` (1,5 GB log thô, 13 block 128 MB), `parsed` (330 MB, 12,6 triệu hàng đã parse), `features`, `results`.
+- **Tab HDFS**: thư mục `/logad` có `raw` (1,5 GB log thô, 12 block 128 MB), `parsed` (330 MB, 12,6 triệu hàng đã parse), `features`, `results`.
   "Log thô nằm trên HDFS, mọi bước trung gian của Spark đọc và ghi trên HDFS."
 - **Tab Spark**: 1 worker 8 lõi, 8 GB. Lịch sử job bị xóa mỗi khi cụm khởi động lại, nên để thấy job thật hãy chạy sống một job nhẹ trong lúc nói
   (13 giây): `.\scripts\submit.ps1 01_ingest_to_hdfs.py`, rồi tải lại tab Spark sẽ thấy ứng dụng trong *Completed Applications*; terminal in ra
