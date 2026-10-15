@@ -4,8 +4,8 @@ Chạy:  python scripts/download_loghub.py            # bản đầy đủ HDFS_
        python scripts/download_loghub.py --sample   # chỉ HDFS_2k (2000 dòng) để thử parser
 
 Kết quả (bản đầy đủ):
-    data/raw/HDFS_v1/HDFS.log
-    data/raw/HDFS_v1/preprocessed/anomaly_label.csv
+    data/raw/HDFS.log
+    data/raw/preprocessed/anomaly_label.csv      (đúng đường dẫn mà configs/pipeline.yaml đang trỏ tới)
 An toàn khi chạy lại: ghi ra file .part rồi mới đổi tên; đứt kết nối thì tự tiếp tục từ chỗ dở (Range).
 """
 from __future__ import annotations
@@ -88,7 +88,7 @@ def main() -> int:
         return 0
 
     zpath = RAW_DIR / "HDFS_v1.zip"
-    out = RAW_DIR / "HDFS_v1"
+    out = RAW_DIR  # zip chứa HDFS.log và preprocessed/ ở cấp cao nhất nên giải nén thẳng vào data/raw
     if zpath.exists() and not valid_zip(zpath):
         print(f"{zpath.name} hỏng/rỗng ({zpath.stat().st_size} byte) -> tải lại")
         zpath.unlink()

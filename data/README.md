@@ -2,18 +2,19 @@
 
 | Thư mục | Nội dung |
 |---|---|
-| `raw/` | Dữ liệu gốc tải về (không commit). `HDFS_v1/HDFS.log`, `HDFS_v1/preprocessed/anomaly_label.csv` |
-| `interim/` | Kết quả trung gian chạy local (mẫu nhỏ để thử) |
+| `raw/` | Dữ liệu gốc tải về (không commit). `HDFS.log`, `preprocessed/anomaly_label.csv` |
+| `interim/` | Kết quả trung gian và tệp phục vụ: `logad/` (chạy local), `hdfs_run/serving/` (chạy trên cụm), `synthetic*/` (dữ liệu mô phỏng để thử code) |
 | `processed/` | Bảng metric, ảnh biểu đồ xuất ra cho báo cáo |
 
 ## Nguồn
 
 **LogHub – HDFS_v1** (https://github.com/logpai/loghub, bản ghi Zenodo):
-- ~11.2 triệu dòng log, ~1.5 GB, thu thập từ cụm Hadoop 200+ node trên Amazon EC2.
-- Gom theo `block_id`: ~575 nghìn block, ~16,8 nghìn block bất thường (~2,9 %) đã gán nhãn bởi chuyên gia.
+- 11.175.629 dòng log, 1,58 GB (đã đếm trên bản tải về). Theo README của chính LogHub: sinh ra trong một private cloud chạy các workload benchmark,
+  được gán nhãn thủ công bằng luật viết tay.
+- Gom theo `block_id`: 575.061 block, 16.838 block bất thường (2,93 %), đã đếm từ `anomaly_label.csv`.
 - `anomaly_label.csv`: `BlockId,Label` (`Normal` / `Anomaly`).
 
-> Các số liệu trên lấy từ mô tả công bố của LogHub/DeepLog – **kiểm tra lại sau khi tải** và ghi số đo thật vào báo cáo.
+> Các số trên đã kiểm tra bằng cách đếm trực tiếp trên dữ liệu đã tải.
 
 ## Tải
 

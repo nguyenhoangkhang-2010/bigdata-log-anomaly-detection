@@ -71,10 +71,12 @@ def build_events(spark, paths, counts: np.ndarray, flagged: np.ndarray, vocab: l
 def build_lines(spark, paths, blocks: pd.DataFrame):
     """Dòng WARN/ERROR/FATAL + mọi dòng của block bị KMeans hoặc Isolation Forest gắn cờ."""
     ids = blocks.loc[blocks["kmeans_flag"] | blocks["iforest_flag"], ["block_id"]]
-    flagged = spark.createDataFrame(ids)
-    parsed = load_parquet(spark, paths.parsed)
-    keep = parsed.where(F.col("level") != "INFO").unionByName(parsed.join(F.broadcast(flagged), "block_id", "left_semi"))
-    return keep.dropDuplicates(["ts", "component", "content", "block_id"]).select(
+    flagged = spark.createDataFrame(ids).withColumn("_flagged", F.lit(True))  # block_id duy nhất nên left join không nhân hàng
+    parsed = load_parquet(spark, paths.parsed).join(F.broadcast(flagged), "block_id", "left")
+    keep = parsed.where((F.col("level") != "INFO") | F.col("_flagged").isNotNull()).drop("_flagged")
+    # KHÔNG dropDuplicates: một block có thể có nhiều dòng giống hệt nhau trong cùng giây (đều là dòng thật). Dòng chứa nhiều block
+    # có một hàng cho mỗi block (block_pos 0,1,2...), trang Nhật ký chỉ lấy block_pos 0 khi không lọc theo block.
+    return keep.select(
         _epoch("ts", "ts_epoch"), "level", "component", "block_id", "event_id", "template", "content", "block_pos",
     )
 

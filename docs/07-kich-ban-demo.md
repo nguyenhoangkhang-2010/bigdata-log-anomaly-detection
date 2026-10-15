@@ -29,7 +29,7 @@ Mỗi block là một vòng đời ghi dữ liệu; hệ thống tìm những bl
   (13 giây): `.\scripts\submit.ps1 01_ingest_to_hdfs.py`, rồi tải lại tab Spark sẽ thấy ứng dụng trong *Completed Applications*; terminal in ra
   "11,175,629 dòng log thô" đọc từ `hdfs://namenode:9000/logad/raw/HDFS.log`.
   "Spark làm bốn việc: parse, trích đặc trưng, chạy KMeans, đánh giá."
-- **Tab Elasticsearch**: 6 index; `logad-anomalies` 575.061 tài liệu, `logad-logs` ~744 nghìn.
+- **Tab Elasticsearch**: 6 index; `logad-anomalies` 575.061 tài liệu, `logad-logs` ~805 nghìn tài liệu.
   "Kết quả cuối được nạp vào Elasticsearch để web và Kibana truy vấn nhanh."
 
 ## 2. Web dashboard (4 phút)
@@ -64,7 +64,7 @@ Isolation Forest và Z-score là baseline để so sánh."
 | Chạy Spark có phân tán thật không? | Chạy trên cụm Spark standalone trong Docker nhưng chỉ có 1 worker trên 1 máy, nên là mô phỏng cụm, không phải nhiều máy thật. |
 | HDFS có nhân bản không? | Cụm demo chỉ có 1 datanode nên không có bản sao. |
 | Web đọc từ HDFS hay Elasticsearch? | Từ Elasticsearch. HDFS lưu dữ liệu thô và trung gian của Spark; Elasticsearch lưu kết quả để truy vấn. |
-| Trang Nhật ký có đủ 11 triệu dòng không? | Không. Có dòng WARN và mọi dòng của block bị gắn cờ (~744 nghìn). Hơn 10 triệu dòng INFO của block bình thường không nạp. |
+| Trang Nhật ký có đủ 11 triệu dòng không? | Không. Có dòng WARN và mọi dòng của block bị gắn cờ (~760 nghìn dòng). Hơn 10 triệu dòng INFO của block bình thường không nạp. |
 
 ## Nếu có sự cố
 - Web không lên: `docker compose --profile search up -d api web`, chờ 10 giây.
