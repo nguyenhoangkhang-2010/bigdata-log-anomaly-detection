@@ -1,9 +1,17 @@
-# Cấu hình trung tâm của pipeline. Giá trị có thể bị ghi đè bằng biến môi trường (xem .env.example).
+# Cấu hình trung tâm của pipeline. Giá trị có thể bị ghi đè bằng biến môi trường (xem src/logad/config.py).
+
+storage:
+  mode: hdfs                                # hdfs (cụm Docker) | local (đọc/ghi data/, không cần HDFS). LOGAD_STORAGE ghi đè
+  local_root: data/interim/logad            # nơi ghi kết quả khi mode = local
+  models_dir: models                        # model KMeans đã huấn luyện (mode = hdfs)
+  serving_dir: data/interim/logad/results/serving   # tệp cho backend/Elasticsearch (mode = hdfs; đổi bằng LOGAD_SERVING_DIR)
 
 dataset:
   name: loghub-hdfs-v1
-  local_raw_dir: data/raw/HDFS_v1          # HDFS.log, preprocessed/anomaly_label.csv
-  sample_lines: 200000                      # dùng khi chạy thử nhanh (null = toàn bộ ~11M dòng)
+  local_raw: data/raw/HDFS.log                              # bản đầy đủ (download_loghub.py giải nén thẳng vào data/raw/)
+  local_raw_fallback: data/raw/HDFS_2k.log                  # dùng khi chưa có bản đầy đủ (2.000 dòng, không nhãn)
+  local_labels: data/raw/preprocessed/anomaly_label.csv
+  sample_lines: null                        # số dòng đọc khi chạy thử nhanh (null = toàn bộ ~11M dòng)
 
 hdfs:
   namenode: hdfs://namenode:9000
@@ -11,17 +19,22 @@ hdfs:
   labels_path: /logad/raw/anomaly_label.csv
   parsed_path: /logad/parsed                # parquet: 1 dòng log đã parse
   features_path: /logad/features            # parquet: 1 dòng / block (vector đặc trưng)
-  results_path: /logad/results              # parquet: điểm bất thường + dự đoán
+  window_stats_path: /logad/window_stats    # parquet: số dòng theo (cửa sổ thời gian, component, level)
+  results_path: /logad/results              # parquet: điểm bất thường + dự đoán, metrics.json
 
 spark:
   app_name: logad
   master: spark://spark-master:7077
   shuffle_partitions: 8
+  local_cores: 8                            # chỉ dùng khi chạy local (scripts/run_local_pipeline.py)
+  local_shuffle_partitions: 16
+  local_driver_memory: 24g                  # máy 40 GB RAM; giảm nếu máy yếu hơn
+  local_max_result_size: 0                  # 0 = không giới hạn (cần khi toPandas() bản đầy đủ)
 
 parsing:
   # Regex dòng log HDFS: "081109 203615 148 INFO dfs.DataNode$PacketResponder: <nội dung>"
   line_regex: '^(\d{6})\s+(\d{6})\s+(\d+)\s+(INFO|WARN|ERROR|FATAL|DEBUG)\s+([\w.$]+):\s*(.*)$'
-  use_drain3: false                         # true = dùng Drain3 thay vì mask bằng regex
+  # Quy tắc che template nằm ở src/logad/parsing.py (MASK_RULES), dùng chung cho Python và Spark.
 
 features:
   session_key: block_id
@@ -30,9 +43,13 @@ features:
 
 models:
   kmeans:
-    k_candidates: [4, 6, 8, 12, 16]
+    k_candidates: [2, 3, 4, 5, 6, 8, 12, 16]
+    k_default: 4                            # dùng khi chưa có nhãn (KHÔNG chọn theo silhouette: xem kmeans_detector.select_k)
+    tune_k_on_labels: true                  # có nhãn thì chọn k bằng PR-AUC trên nửa `val`; báo cáo ở nửa `test`
     seed: 42
-    threshold_percentile: 99                # điểm = khoảng cách tới tâm cụm gần nhất
+    max_iter: 30
+    silhouette_sample: 100000               # số block tối đa dùng tính silhouette (chỉ để báo cáo)
+    threshold_percentile: 97                # điểm = khoảng cách tới tâm cụm gần nhất; gắn cờ ~3% block (khớp tỉ lệ bất thường của HDFS_v1)
   isolation_forest:                         # baseline sklearn (chạy trên pandas)
     n_estimators: 200
     contamination: 0.03
@@ -46,6 +63,4 @@ evaluation:
 
 elasticsearch:
   host: http://elasticsearch:9200
-  index_logs: logad-logs
-  index_anomalies: logad-anomalies
-  index_error_stats: logad-error-stats
+  index_prefix: logad                       # index: logad-anomalies, logad-error-stats, logad-spikes, logad-logs, logad-events, logad-meta

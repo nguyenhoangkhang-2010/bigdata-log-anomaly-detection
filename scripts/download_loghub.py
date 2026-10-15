@@ -27,13 +27,19 @@ def download(url: str, dest: Path, retries: int = 40) -> None:
     """Tải có thể tiếp tục: nếu đứt kết nối thì thử lại và xin phần còn thiếu bằng header Range."""
     dest.parent.mkdir(parents=True, exist_ok=True)
     part = dest.with_name(dest.name + ".part")
-    total = int(requests.head(url, allow_redirects=True, timeout=30).headers.get("content-length", 0))
+    # BẮT BUỘC "identity": GitHub trả file nén gzip nên Content-Length là cỡ file NÉN, còn requests lại ghi
+    # file đã GIẢI NÉN -> hai số lệch nhau, script tưởng "tải thiếu" rồi xin Range và bị HTTP 416.
+    plain = {"Accept-Encoding": "identity"}
+    total = int(requests.head(url, allow_redirects=True, headers=plain, timeout=30).headers.get("content-length", 0))
     for attempt in range(1, retries + 1):
         have = part.stat().st_size if part.exists() else 0
+        if total and have > total:  # file dở hỏng (to hơn cả file gốc) -> bỏ, tải lại từ đầu
+            part.unlink()
+            have = 0
         if total and have == total:
             break
         try:
-            headers = {"Range": f"bytes={have}-"} if have else {}
+            headers = {**plain, **({"Range": f"bytes={have}-"} if have else {})}
             with requests.get(url, stream=True, headers=headers, timeout=(15, 60)) as r:
                 r.raise_for_status()
                 if have and r.status_code != 206:  # server không hỗ trợ tiếp tục -> tải lại từ đầu
@@ -49,7 +55,9 @@ def download(url: str, dest: Path, retries: int = 40) -> None:
                             last = pct
         except requests.RequestException as e:
             have = part.stat().st_size if part.exists() else 0
-            print(f"  ! đứt kết nối ở {have / 1e6:.0f} MB ({type(e).__name__}); thử lại {attempt}/{retries} ...", flush=True)
+            status = getattr(e.response, "status_code", None)
+            why = f"HTTP {status}" if status else type(e).__name__
+            print(f"  ! lỗi ở {have / 1e6:.1f} MB ({why}); thử lại {attempt}/{retries} ...", flush=True)
             time.sleep(3)
     size = part.stat().st_size if part.exists() else 0
     if total and size != total:
@@ -72,7 +80,11 @@ def main() -> int:
     args = ap.parse_args()
 
     if args.sample:
-        download(SAMPLE_URL, RAW_DIR / "HDFS_2k.log")
+        sample = RAW_DIR / "HDFS_2k.log"
+        if sample.exists() and sample.stat().st_size > 0:
+            print(f"đã có {sample} ({sample.stat().st_size / 1e3:.0f} KB), bỏ qua")
+        else:
+            download(SAMPLE_URL, sample)
         return 0
 
     zpath = RAW_DIR / "HDFS_v1.zip"

@@ -1,23 +1,32 @@
-"""Job 06 - đẩy log đã parse, block bất thường và thống kê lỗi vào Elasticsearch cho Kibana."""
-from logad.config import hdfs_uri, load_config
-from logad.es_sink import write_df
-from logad.spark_utils import get_spark
+"""Job 06 - nạp kết quả pipeline vào Elasticsearch (nơi lưu trữ mà API/dashboard truy vấn).
+
+Đọc thư mục serving do job 07 xuất (block + điểm 3 mô hình, thống kê lỗi theo thời gian, đột biến, dòng log, mẫu sự kiện,
+chỉ số mô hình) rồi bulk vào các index `<prefix>-*`. Cần Elasticsearch đang chạy: `docker compose --profile search up -d`.
+Đặt ES_HOST nếu không dùng địa chỉ trong cấu hình.
+"""
+import os
+from pathlib import Path
+
+from _common import run_standalone
+
+from logad.config import resolve_paths
+from logad.es_load import load_serving, index_name
 
 
-def main() -> None:
-    cfg = load_config()
+def run(spark, cfg) -> dict:
+    paths = resolve_paths(cfg)
     es = cfg["elasticsearch"]
-    spark = get_spark(cfg, "06-index")
+    host = os.environ.get("ES_HOST", es["host"])
+    serving_dir = Path(paths.serving)
+    if not (serving_dir / "meta.json").exists():
+        raise FileNotFoundError(f"Chưa có {serving_dir}: chạy job 07 (python scripts/run_local_pipeline.py --only 07) trước.")
 
-    anomalies = spark.read.parquet(hdfs_uri(cfg, "results_path") + "/kmeans").where("is_anomaly = 1")
-    write_df(anomalies, es["index_anomalies"], es["host"])
-
-    stats = spark.read.parquet(hdfs_uri(cfg, "features_path") + "_window_stats")
-    write_df(stats, es["index_error_stats"], es["host"])
-
-    # TODO: mẫu log ERROR/WARN (không đẩy toàn bộ 11M dòng) -> es["index_logs"]
-    spark.stop()
+    out = load_serving(serving_dir, host, es["index_prefix"])
+    print(f"[06] Elasticsearch {host} (index {index_name(es['index_prefix'], '*')})")
+    for kind, r in out.items():
+        print(f"     {kind:<12} {r['indexed']:>9,} tài liệu · {r['errors']} lỗi")
+    return out
 
 
 if __name__ == "__main__":
-    main()
+    run_standalone("06-index", run)

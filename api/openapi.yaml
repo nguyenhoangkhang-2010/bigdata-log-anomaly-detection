@@ -152,6 +152,46 @@ paths:
               schema: { $ref: "#/components/schemas/AnomalyPage" }
         "422": { $ref: "#/components/responses/ValidationError" }
 
+  /api/v1/anomalies/export:
+    get:
+      operationId: exportAnomalies
+      tags: [anomalies]
+      summary: Xuất danh sách block bất thường ra CSV (cùng bộ lọc với danh sách, không phân trang)
+      description: |
+        Cột: block_id, model, anomaly_score, is_anomaly, cluster, first_ts, last_ts, line_count,
+        warn_count, error_count, top_events (các event_id cách nhau bằng khoảng trắng).
+        Trả về tối đa `limit` dòng theo thứ tự `sort`.
+      parameters:
+        - name: model
+          in: query
+          schema: { $ref: "#/components/schemas/ModelName" }
+        - name: only_flagged
+          in: query
+          schema: { type: boolean, default: true }
+        - name: min_score
+          in: query
+          schema: { type: number, minimum: 0 }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 64 }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [score_desc, score_asc, time_desc, time_asc, lines_desc], default: score_desc }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 10000, default: 1000 }
+      responses:
+        "200":
+          description: Tệp CSV (UTF-8)
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+              description: attachment; filename="anomalies-<model>.csv"
+          content:
+            text/csv:
+              schema: { type: string }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
   /api/v1/anomalies/{block_id}:
     get:
       operationId: getAnomaly
@@ -300,7 +340,7 @@ components:
       default: 1h
     DataSource:
       type: string
-      enum: [demo, elasticsearch]
+      enum: [demo, elasticsearch, files]
 
     Problem:
       type: object

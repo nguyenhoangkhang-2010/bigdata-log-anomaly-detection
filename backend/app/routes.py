@@ -1,10 +1,12 @@
 """Các route - operationId và tham số khớp api/openapi.yaml."""
 from __future__ import annotations
 
+import csv
+import io
 from datetime import datetime
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 
 from .repositories.base import Repository
 from .schemas import (
@@ -20,6 +22,7 @@ def get_repo(request: Request) -> Repository:
 
 
 Repo = Annotated[Repository, Depends(get_repo)]
+AnomalySort = Literal["score_desc", "score_asc", "time_desc", "time_asc", "lines_desc"]
 
 
 @router.get("/health", operation_id="getHealth", response_model=Health, tags=["system"])
@@ -63,11 +66,49 @@ def list_anomalies(
     only_flagged: bool = True,
     min_score: Annotated[float | None, Query(ge=0)] = None,
     q: Annotated[str | None, Query(max_length=64)] = None,
-    sort: Literal["score_desc", "score_asc", "time_desc", "time_asc", "lines_desc"] = "score_desc",
+    sort: AnomalySort = "score_desc",
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> AnomalyPage:
     return repo.anomalies(model, only_flagged, min_score, q, sort, page, page_size)
+
+
+CSV_COLUMNS = [
+    "block_id", "model", "anomaly_score", "is_anomaly", "cluster", "first_ts", "last_ts",
+    "line_count", "warn_count", "error_count", "top_events",
+]
+
+
+# Phải khai báo TRƯỚC /anomalies/{block_id}, nếu không "export" bị hiểu là block_id.
+@router.get(
+    "/anomalies/export", operation_id="exportAnomalies", tags=["anomalies"], response_class=Response,
+    responses={200: {"description": "Tệp CSV (UTF-8)", "content": {"text/csv": {"schema": {"type": "string"}}}}},
+)
+def export_anomalies(
+    repo: Repo,
+    model: ModelName | None = None,
+    only_flagged: bool = True,
+    min_score: Annotated[float | None, Query(ge=0)] = None,
+    q: Annotated[str | None, Query(max_length=64)] = None,
+    sort: AnomalySort = "score_desc",
+    limit: Annotated[int, Query(ge=1, le=10000)] = 1000,
+) -> Response:
+    page = repo.anomalies(model, only_flagged, min_score, q, sort, 1, limit)
+    buf = io.StringIO()
+    w = csv.writer(buf, lineterminator="\r\n")
+    w.writerow(CSV_COLUMNS)
+    for it in page.items:
+        w.writerow([
+            it.block_id, it.model, it.anomaly_score, int(it.is_anomaly),
+            "" if it.cluster is None else it.cluster,
+            it.first_ts.isoformat(), it.last_ts.isoformat(),
+            it.line_count, it.warn_count, it.error_count, " ".join(it.top_events),
+        ])
+    name = f"anomalies-{page.items[0].model if page.items else (model or 'kmeans')}.csv"
+    return Response(
+        buf.getvalue(), media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{name}"'},
+    )
 
 
 @router.get("/anomalies/{block_id}", operation_id="getAnomaly", response_model=AnomalyDetail, tags=["anomalies"])

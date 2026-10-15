@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useEvents } from "../api/hooks";
-import { Async, LevelMark, PageHead, Section, Segmented } from "../components/ui";
+import { Async, LevelMark, PageTitle, Section, Segmented } from "../components/ui";
 import { fmtInt, fmtNum, fmtPct } from "../lib/format";
 import { useDocumentTitle } from "../lib/hooks";
 
@@ -13,14 +13,12 @@ export default function Events() {
 
   return (
     <>
-      <PageHead
-        no="04" section="Sự kiện"
-        title={<>Mẫu câu nào <em>kéo theo</em> rắc rối</>}
-        lede="Mỗi dòng log được rút về một mẫu (template) bằng cách che block, địa chỉ IP và số. Độ nghiêng cho biết mẫu đó xuất hiện trong block bất thường nhiều gấp bao nhiêu lần mức chung."
+      <PageTitle
+        title="Sự kiện"
+        lede={<>Mỗi dòng log được rút về một mẫu bằng cách che block, địa chỉ IP và số. <span className="mark">Độ nghiêng</span> cho biết mẫu đó xuất hiện trong block bất thường nhiều gấp bao nhiêu lần mức chung; lớn hơn 1 là nghiêng về phía bất thường.</>}
       />
       <Section
-        title="Các mẫu sự kiện" label="Template"
-        note="Độ nghiêng > 1 nghĩa là mẫu nghiêng về phía block bất thường."
+        title="Các mẫu sự kiện"
         tools={<Segmented<Sort> label="Sắp xếp" value={sort} onChange={setSort} options={[
           { value: "lift_desc", label: "Theo độ nghiêng" },
           { value: "count_desc", label: "Theo tần suất" },
@@ -43,14 +41,13 @@ export default function Events() {
                       <td className="r mono num">{fmtInt(e.block_count)}</td>
                       <td>
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-                          <span className="meter" style={{ width: 90 }}>
-                            <span className="meter__track" />
-                            <span className="meter__fill" data-over={e.anomaly_ratio > 0.5} style={{ width: `${e.anomaly_ratio * 100}%` }} />
+                          <span className="meter" style={{ width: 96 }}>
+                            <span className="meter__base" style={{ width: `${e.anomaly_ratio * 100}%` }} />
                           </span>
-                          <span className="mono num" style={{ fontSize: 12.5 }}>{fmtPct(e.anomaly_ratio, 0)}</span>
+                          <span className="mono num" style={{ fontSize: 13, fontWeight: 700 }}>{fmtPct(e.anomaly_ratio, 0)}</span>
                         </span>
                       </td>
-                      <td className={`r big ${e.lift >= 2 ? "signal" : ""}`}>×{fmtNum(e.lift, 1)}</td>
+                      <td className="r"><span className={`big ${e.lift >= 2 ? "mark" : ""}`}>×{fmtNum(e.lift, 1)}</span></td>
                     </tr>
                   ))}
                 </tbody>

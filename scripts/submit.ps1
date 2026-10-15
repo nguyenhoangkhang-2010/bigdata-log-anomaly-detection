@@ -1,15 +1,21 @@
-# Submit 1 job Spark lên cụm trong Docker (src/ đã mount vào /opt/project/src, PYTHONPATH đã set).
+# Submit 1 job Spark lên cụm trong Docker (driver chạy trong container spark-master; src/ jobs/ configs/ data/ đã mount).
 # Dùng:  .\scripts\submit.ps1 02_parse_logs.py
-#        .\scripts\submit.ps1 06_index_elasticsearch.py -Es    # thêm connector Elasticsearch
+#        $env:LOGAD_SERVING_DIR = "data/interim/hdfs_run/serving"; .\scripts\submit.ps1 07_export_serving.py
+# Bộ nhớ: worker 8g (SPARK_WORKER_MEMORY), executor 7g, driver 4g. Chỉnh bằng biến môi trường SPARK_EXECUTOR_MEMORY / SPARK_DRIVER_MEMORY.
 param(
-    [Parameter(Mandatory = $true, Position = 0)][string]$Job,
-    [switch]$Es
+    [Parameter(Mandatory = $true, Position = 0)][string]$Job
 )
 $ErrorActionPreference = "Stop"
 
-$args2 = @("exec", "-w", "/opt/project", "logad-spark-master",
-           "/opt/spark/bin/spark-submit", "--master", "spark://spark-master:7077")
-if ($Es) { $args2 += @("--packages", "org.elasticsearch:elasticsearch-spark-30_2.12:8.15.3") }
-$args2 += "/opt/project/jobs/$Job"
+$execMem = if ($env:SPARK_EXECUTOR_MEMORY) { $env:SPARK_EXECUTOR_MEMORY } else { "7g" }
+$drvMem = if ($env:SPARK_DRIVER_MEMORY) { $env:SPARK_DRIVER_MEMORY } else { "4g" }
+$envArgs = @()
+if ($env:LOGAD_SERVING_DIR) { $envArgs += @("-e", "LOGAD_SERVING_DIR=$($env:LOGAD_SERVING_DIR)") }
 
-docker @args2
+# Spark ghi log ra stderr; Windows PowerShell 5.1 coi mỗi dòng stderr của lệnh ngoài là lỗi, nên hạ mức cảnh báo và in dạng chuỗi thường
+$ErrorActionPreference = "Continue"
+docker exec @envArgs -w /opt/project logad-spark-master /opt/spark/bin/spark-submit `
+    --master spark://spark-master:7077 `
+    --driver-memory $drvMem --executor-memory $execMem --conf spark.driver.maxResultSize=0 `
+    /opt/project/jobs/$Job 2>&1 | ForEach-Object { "$_" }
+if ($LASTEXITCODE -ne 0) { throw "Job $Job lỗi (mã $LASTEXITCODE)" }

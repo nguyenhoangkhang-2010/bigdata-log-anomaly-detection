@@ -97,3 +97,112 @@ def test_events_lift_orders_anomalous_first(client):
 def test_alerts_filter_by_severity(client):
     rows = client.get("/api/v1/alerts", params={"severity": "critical", "limit": 50}).json()
     assert all(a["severity"] == "critical" for a in rows)
+
+
+# ───────────── xuất CSV ─────────────
+def _csv_rows(text: str) -> list[list[str]]:
+    import csv
+    import io
+
+    return list(csv.reader(io.StringIO(text)))
+
+
+def test_export_is_csv_attachment_with_header(client):
+    r = client.get("/api/v1/anomalies/export", params={"limit": 5})
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/csv")
+    assert 'filename="anomalies-kmeans.csv"' in r.headers["content-disposition"]
+    rows = _csv_rows(r.text)
+    assert rows[0][:3] == ["block_id", "model", "anomaly_score"] and len(rows) == 6  # tiêu đề + 5 dòng
+
+
+def test_export_not_shadowed_by_block_route(client):
+    # "export" không được bị hiểu là block_id (sẽ ra 404 nếu route động đứng trước)
+    assert client.get("/api/v1/anomalies/export").status_code == 200
+
+
+def test_export_matches_list_order_and_filters(client):
+    lst = client.get("/api/v1/anomalies", params={"model": "iforest", "page_size": 10, "sort": "time_asc"}).json()["items"]
+    rows = _csv_rows(client.get("/api/v1/anomalies/export", params={"model": "iforest", "limit": 10, "sort": "time_asc"}).text)[1:]
+    assert [x[0] for x in rows] == [i["block_id"] for i in lst]
+    assert all(x[1] == "iforest" and x[4] == "" for x in rows)  # iforest không có cụm
+
+
+def test_export_rejects_bad_limit_and_empty_result_still_has_header(client):
+    assert client.get("/api/v1/anomalies/export", params={"limit": 0}).status_code == 422
+    assert client.get("/api/v1/anomalies/export", params={"limit": 10001}).status_code == 422
+    r = client.get("/api/v1/anomalies/export", params={"q": "khong-co-block-nao-nhu-vay"})
+    assert len(_csv_rows(r.text)) == 1
+
+
+# ───────────── nhánh còn lại của API ─────────────
+def test_anomalies_min_score_and_sort_orders(client):
+    top = client.get("/api/v1/anomalies", params={"page_size": 1}).json()["items"][0]["anomaly_score"]
+    hi = client.get("/api/v1/anomalies", params={"min_score": top, "only_flagged": False}).json()
+    assert hi["total"] >= 1 and all(i["anomaly_score"] >= top for i in hi["items"])
+    asc = client.get("/api/v1/anomalies", params={"sort": "time_asc", "page_size": 30}).json()["items"]
+    assert [i["first_ts"] for i in asc] == sorted(i["first_ts"] for i in asc)
+    big = client.get("/api/v1/anomalies", params={"sort": "lines_desc", "page_size": 30}).json()["items"]
+    assert [i["line_count"] for i in big] == sorted((i["line_count"] for i in big), reverse=True)
+
+
+def test_anomalies_page_beyond_last_is_empty_but_keeps_total(client):
+    first = client.get("/api/v1/anomalies", params={"page_size": 10}).json()
+    far = client.get("/api/v1/anomalies", params={"page_size": 10, "page": 9999}).json()
+    assert far["items"] == [] and far["total"] == first["total"] and far["page"] == 9999
+
+
+def test_logs_time_range_and_text_filter(client):
+    pts = client.get("/api/v1/logs", params={"page_size": 200}).json()["items"]
+    ts = sorted(p["ts"] for p in pts)
+    lo, hi = ts[len(ts) // 3], ts[2 * len(ts) // 3]
+    r = client.get("/api/v1/logs", params={"start": lo, "end": hi, "page_size": 200}).json()
+    assert r["total"] > 0 and all(lo <= i["ts"] <= hi for i in r["items"])
+    up = client.get("/api/v1/logs", params={"q": "RECEIVING BLOCK"}).json()
+    assert up["total"] > 0 and all("receiving block" in i["content"].lower() for i in up["items"])
+
+
+def test_logs_component_filter_and_page_size_limit(client):
+    comp = client.get("/api/v1/overview/components").json()[0]["component"]
+    r = client.get("/api/v1/logs", params={"component": comp, "page_size": 20}).json()
+    assert r["total"] > 0 and all(i["component"] == comp for i in r["items"])
+    assert client.get("/api/v1/logs", params={"page_size": 201}).status_code == 422
+
+
+def test_components_sorted_by_errors_and_limited(client):
+    rows = client.get("/api/v1/overview/components", params={"limit": 3}).json()
+    assert len(rows) == 3
+    keys = [(r["error"] + r["fatal"], r["warn"]) for r in rows]
+    assert keys == sorted(keys, reverse=True)
+
+
+def test_timeline_default_bucket_is_one_hour(client):
+    d = client.get("/api/v1/overview/timeline").json()
+    assert d["bucket"] == "1h" and len(d["points"]) <= 30
+    t = [p["ts"] for p in d["points"]]
+    assert t == sorted(t)
+
+
+def test_events_count_sort(client):
+    ev = client.get("/api/v1/events", params={"sort": "count_desc"}).json()
+    assert [e["count"] for e in ev] == sorted((e["count"] for e in ev), reverse=True)
+
+
+def test_score_distribution_for_every_model_and_bad_model(client):
+    for m in ("kmeans", "iforest", "zscore"):
+        d = client.get(f"/api/v1/models/{m}/score-distribution").json()
+        assert d["model"] == m and len(d["bins"]) == 40
+        assert all(b["upper"] > b["lower"] for b in d["bins"])
+    assert client.get("/api/v1/models/gpt/score-distribution").status_code == 422
+
+
+def test_unknown_route_is_problem_404(client):
+    r = client.get("/api/v1/khong-co")
+    assert r.status_code == 404 and r.json()["status"] == 404
+
+
+def test_cors_allows_dev_origin_only(client):
+    ok = client.get("/api/v1/health", headers={"Origin": "http://localhost:5173"})
+    assert ok.headers.get("access-control-allow-origin") == "http://localhost:5173"
+    bad = client.get("/api/v1/health", headers={"Origin": "http://evil.example"})
+    assert "access-control-allow-origin" not in bad.headers

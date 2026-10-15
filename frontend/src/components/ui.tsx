@@ -1,35 +1,27 @@
 import type { ReactNode } from "react";
 import { ApiError, type S } from "../api/client";
 
-export function PageHead({
-  no, section, title, lede,
-}: { no: string; section: string; title: ReactNode; lede?: ReactNode }) {
+/** Tiêu đề trang: tên đậm bản rộng bên trái, một đoạn dẫn bên phải, gạch đen dày bên dưới. */
+export function PageTitle({ title, lede, isId }: { title: ReactNode; lede?: ReactNode; isId?: boolean }) {
   return (
-    <header className="head">
-      <div className="head__kicker">
-        <span className="label">Nº {no} / 06</span>
-        <span className="label">{section}</span>
-      </div>
-      <h1>{title}</h1>
-      {lede && <p className="head__lede">{lede}</p>}
+    <header className="pt">
+      <h1 className={isId ? "is-id" : undefined}>{title}</h1>
+      {lede && <p>{lede}</p>}
     </header>
   );
 }
 
 export function Section({
-  label, title, note, tools, children,
-}: { label?: string; title: string; note?: ReactNode; tools?: ReactNode; children: ReactNode }) {
+  title, note, tools, children,
+}: { title: string; note?: ReactNode; tools?: ReactNode; children: ReactNode }) {
   return (
-    <section className="sec">
-      <div className="sec__label">
-        {label && <span className="label">{label}</span>}
-        <h2 className="sec__title">{title}</h2>
-        {note && <p className="sec__note">{note}</p>}
-      </div>
-      <div className="sec__body">
+    <section className="sec" aria-label={title}>
+      <div className="sec__head">
+        <h2>{title}</h2>
         {tools && <div className="sec__tools">{tools}</div>}
-        {children}
       </div>
+      {note && <p className="sec__note">{note}</p>}
+      {children}
     </section>
   );
 }
@@ -40,32 +32,58 @@ export function Segmented<T extends string>({
   return (
     <div className="seg" role="group" aria-label={label}>
       {options.map((o) => (
-        <button key={o.value} aria-pressed={o.value === value} onClick={() => onChange(o.value)}>
-          {o.label}
-        </button>
+        <button key={o.value} aria-pressed={o.value === value} onClick={() => onChange(o.value)}>{o.label}</button>
       ))}
     </div>
+  );
+}
+
+export function LevelSwatch({ level, size = 12 }: { level: S["Level"]; size?: number }) {
+  return (
+    <svg className="sw" width={size} height={size} viewBox="0 0 12 12" aria-hidden="true">
+      <rect className={`sw-${level}`} x="0.8" y="0.8" width="10.4" height="10.4" />
+    </svg>
   );
 }
 
 export function LevelMark({ level }: { level: S["Level"] }) {
   return (
     <span className="lv" data-l={level}>
-      <i />
+      <LevelSwatch level={level} />
       {level}
     </span>
   );
 }
 
-/** Thước đo điểm bất thường so với ngưỡng (vạch đỏ). */
+/** Thước điểm: phần đen tới ngưỡng, phần VƯỢT ngưỡng tô vàng; vạch xanh là ngưỡng. */
 export function ScoreMeter({ score, threshold, max }: { score: number; threshold: number; max: number }) {
-  const pct = (v: number) => `${Math.min(100, (v / max) * 100)}%`;
+  const pct = (v: number) => `${Math.max(0, Math.min(100, (v / max) * 100))}%`;
+  const over = score > threshold;
   return (
     <span className="meter" role="img" aria-label={`điểm ${score.toFixed(3)}, ngưỡng ${threshold.toFixed(3)}`}>
-      <span className="meter__track" />
-      <span className="meter__fill" data-over={score > threshold} style={{ width: pct(score) }} />
+      <span className="meter__base" style={{ width: pct(Math.min(score, threshold)) }} />
+      {over && <span className="meter__over" style={{ left: pct(threshold), width: `calc(${pct(score)} - ${pct(threshold)})` }} />}
       <span className="meter__thr" style={{ left: pct(threshold) }} />
     </span>
+  );
+}
+
+/** Cơ cấu dòng của một block theo tỉ lệ: INFO xám · WARN xanh · ERROR đen. */
+export function LineMix({ total, warn, error, width = 110 }: { total: number; warn: number; error: number; width?: number }) {
+  const info = Math.max(0, total - warn - error);
+  const w = (v: number) => (total ? (v / total) * width : 0);
+  const parts = [["m-info", info], ["m-warn", warn], ["m-error", error]] as const;
+  let x = 0;
+  return (
+    <svg className="mix" width={width} height="14" viewBox={`0 0 ${width} 14`} role="img"
+         aria-label={`${info} INFO, ${warn} WARN, ${error} lỗi`}>
+      {parts.map(([cls, v]) => {
+        if (!v) return null;
+        const r = <rect key={cls} className={cls} x={x} y="0" width={Math.max(2, w(v) - 1)} height="14" />;
+        x += w(v);
+        return r;
+      })}
+    </svg>
   );
 }
 
@@ -77,11 +95,9 @@ export function Pager({
   const to = Math.min(total, page * pageSize);
   return (
     <nav className="pager" aria-label="Phân trang">
-      <span className="label num">
-        {from}–{to} / {total.toLocaleString("vi-VN")}
-      </span>
+      <span className="pager__n num">{from}–{to} / {total.toLocaleString("vi-VN")}</span>
       <span className="pager__btns">
-        <button className="btn" disabled={page <= 1} onClick={() => onPage(page - 1)}>← Trước</button>
+        <button className="btn btn--line" disabled={page <= 1} onClick={() => onPage(page - 1)}>← Trước</button>
         <button className="btn" disabled={page >= last} onClick={() => onPage(page + 1)}>Sau →</button>
       </span>
     </nav>

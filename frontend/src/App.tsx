@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
 import { Shell } from "./components/Shell";
-import { PageHead } from "./components/ui";
+import { PageTitle } from "./components/ui";
 import Alerts from "./pages/Alerts";
 import AnomalyDetail from "./pages/AnomalyDetail";
 import Anomalies from "./pages/Anomalies";
@@ -17,8 +17,8 @@ const queryClient = new QueryClient({
 function NotFound() {
   return (
     <>
-      <PageHead no="00" section="Lạc đường" title={<>Trang này <em>không có</em> trong mục lục</>} />
-      <Link className="btn" to="/">← Về tổng quan</Link>
+      <PageTitle title="Không tìm thấy trang" lede="Địa chỉ này không có trong hệ thống. Chọn một mục ở thanh điều hướng, hoặc quay về tổng quan." />
+      <Link className="btn back" to="/">← Về tổng quan</Link>
     </>
   );
 }
